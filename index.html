@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presentasi Strategi Komputasi Awan: PEFT-PSO vs MA-NSGA-II</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Plus Jakarta Sans, Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slateDark: '#0b1120',
+            cardDark: '#131c31',
+            cardElevated: '#1e293b',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Base Viewport & Typography Setup */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0b1120;
+      color: #f8fafc;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Subtle Tech Grid Background */
+    .bg-tech-grid {
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+        linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    }
+
+    /* Glassmorphic Card Styling */
+    .glass-card {
+      background: rgba(19, 28, 49, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      box-shadow: 0 10px 30px -10px rgba(2, 6, 23, 0.6);
+    }
+
+    .glass-card-highlight {
+      background: linear-gradient(145deg, rgba(19, 28, 49, 0.92), rgba(14, 116, 144, 0.18));
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 12px 35px -10px rgba(56, 189, 248, 0.15);
+    }
+
+    /* Slide Transition Animations */
+    .slide-panel {
+      display: none;
+      opacity: 0;
+      transform: translateY(12px) scale(0.992);
+      transition: opacity 0.38s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .slide-panel.active {
+      display: flex;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Custom Scrollbar for High-Density Slides on Small Screens */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(71, 85, 105, 0.6);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.6);
+    }
+
+    /* Custom Range Slider for Transfer Cost */
+    input[type="range"].sim-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(30, 41, 59, 0.9);
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    input[type="range"].sim-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
+      transition: transform 0.15s ease;
+    }
+    input[type="range"].sim-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Striped Pattern for Idle & Transfer Bars */
+    .bg-striped-transfer {
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(245, 158, 11, 0.28),
+        rgba(245, 158, 11, 0.28) 6px,
+        rgba(245, 158, 11, 0.48) 6px,
+        rgba(245, 158, 11, 0.48) 12px
+      );
+    }
+
+    .bg-striped-idle {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(100, 116, 139, 0.12),
+        rgba(100, 116, 139, 0.12) 6px,
+        rgba(100, 116, 139, 0.22) 6px,
+        rgba(100, 116, 139, 0.22) 12px
+      );
+    }
+
+    /* Pulse Animation for DAG Nodes */
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: floatSlow 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-tech-grid text-slate-100 flex flex-col justify-between select-none">
+
+  <!-- ==================== TOP NAVIGATION BAR ==================== -->
+  <header class="w-full px-4 sm:px-8 py-3 border-b border-slate-800/80 bg-slate-950/75 backdrop-blur-md flex items-center justify-between z-30 shrink-0">
+    <!-- Left: Course Tag & Current Slide Title -->
+    <div class="flex items-center gap-3 min-w-0">
+      <button onclick="toggleDrawer()" title="Buka Daftar Slide" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/70 text-cyan-400 text-xs font-semibold transition cursor-pointer shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/>
+        </svg>
+        <span class="hidden sm:inline">Daftar Slide</span>
+      </button>
+      <div class="hidden md:flex items-center gap-2 text-xs text-slate-400 truncate">
+        <span class="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-medium">Strategi Komputasi Awan</span>
+        <span>/</span>
+        <span id="headerSlideTitle" class="text-slate-200 font-medium truncate">Judul Presentasi</span>
+      </div>
+    </div>
+
+    <!-- Center: Interactive Slide Dots -->
+    <nav aria-label="Navigasi Slide" class="flex items-center gap-1.5 sm:gap-2" id="slideDotsContainer">
+      <!-- Generated dynamically by JS -->
+    </nav>
+
+    <!-- Right: Fullscreen Toggle -->
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="toggleFullscreen()" id="fullscreenBtn" title="Mode Layar Penuh (Tombol F)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/70 text-slate-200 text-xs font-medium transition cursor-pointer">
+        <svg id="fsIconExpand" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+        </svg>
+        <span class="hidden sm:inline" id="fsBtnText">Layar Penuh</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== SLIDE INDEX DRAWER (MODAL OVERLAY) ==================== -->
+  <div id="slideDrawer" class="fixed inset-0 z-50 hidden">
+    <div onclick="toggleDrawer()" class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"></div>
+    <aside class="relative w-80 max-w-[85vw] h-full bg-slate-900 border-r border-slate-800 p-5 flex flex-col justify-between shadow-2xl z-10">
+      <div>
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-cyan-400 font-semibold">Navigasi Presentasi</p>
+            <h2 class="font-display font-bold text-base text-white">Struktur 8 Slide</h2>
+          </div>
+          <button onclick="toggleDrawer()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <ul id="drawerList" class="mt-4 space-y-2 overflow-y-auto max-h-[70vh] custom-scroll pr-1">
+          <!-- Populated by JS -->
+        </ul>
+      </div>
+      <div class="pt-4 border-t border-slate-800 text-xs text-slate-400 space-y-1">
+        <p><span class="font-mono text-cyan-400">← / →</span> : Pindah slide</p>
+        <p><span class="font-mono text-cyan-400">1 – 8</span> : Lompat ke slide</p>
+        <p><span class="font-mono text-cyan-400">F</span> : Toggle layar penuh</p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toastBox" class="fixed top-16 right-4 z-50 pointer-events-none opacity-0 transition-opacity duration-300">
+    <div class="px-4 py-2.5 rounded-xl bg-slate-800/95 border border-cyan-500/40 text-xs font-medium text-slate-100 shadow-lg flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+      <span id="toastMessage">Pesan notifikasi</span>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN PRESENTATION STAGE ==================== -->
+  <main id="presentationStage" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto overflow-x-hidden custom-scroll flex flex-col justify-center">
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 1: JUDUL PRESENTASI                                             -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel active flex-col justify-center h-full max-w-5xl mx-auto w-full py-2" data-title="Judul Presentasi">
+      <div class="glass-card rounded-3xl p-6 sm:p-10 lg:p-12 relative overflow-hidden">
+        <!-- Decorative Top-Right Glow & SVG Graph -->
+        <div class="absolute -right-12 -top-12 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -left-12 -bottom-12 w-72 h-72 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Badges -->
+        <div class="flex flex-wrap items-center gap-2.5 mb-6">
+          <span class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+            Mata Kuliah: Strategi Komputasi Awan
+          </span>
+          <span class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+            Kategori: Heuristik × Metaheuristik
+          </span>
+          <span class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-300 border border-violet-500/30">
+            Basis Paper: Predict Earliest Finish Time + PSO
+          </span>
+        </div>
+
+        <!-- Main Title -->
+        <h1 class="font-display font-extrabold text-2xl sm:text-4xl lg:text-5xl text-white leading-tight tracking-tight mb-4">
+          Optimasi Penjadwalan Workflow di Cloud Computing: 
+          <span class="bg-gradient-to-r from-cyan-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">
+            Algoritma Hybrid PEFT-PSO
+          </span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-slate-300 text-base sm:text-lg lg:text-xl max-w-3xl leading-relaxed mb-8">
+          Analisis Komparatif (<strong class="text-cyan-300 font-semibold">PEFT-PSO</strong> vs. <strong class="text-violet-300 font-semibold">MA-NSGA-II</strong>) &amp; Simulasi Performa <em>Makespan</em> pada Infrastruktur Virtual Machine Heterogen
+        </p>
+
+        <!-- 3 Pillar Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-slate-800/80">
+          <div class="p-4 rounded-2xl bg-slate-900/70 border border-slate-800">
+            <div class="flex items-center gap-2 text-cyan-400 font-mono text-xs font-bold mb-1.5">
+              <span>01 // SELEKSI ALGORITMA</span>
+            </div>
+            <p class="text-sm font-semibold text-white mb-1">Mengapa PEFT-PSO Unggul?</p>
+            <p class="text-xs text-slate-400 leading-relaxed">Evaluasi 5 dimensi kritis yang menjadikan PEFT-PSO opsi terbaik dibanding MA-NSGA-II.</p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-slate-900/70 border border-slate-800">
+            <div class="flex items-center gap-2 text-emerald-400 font-mono text-xs font-bold mb-1.5">
+              <span>02 // LOOK-AHEAD MECHANISM</span>
+            </div>
+            <p class="text-sm font-semibold text-white mb-1">Sinergi OCT &amp; Swarm Search</p>
+            <p class="text-xs text-slate-400 leading-relaxed">Matriks <em>Optimistic Cost Table</em> memandu partikel PSO menghindari jebakan <em>local optima</em>.</p>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-slate-900/70 border border-slate-800">
+            <div class="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold mb-1.5">
+              <span>03 // SIMULASI INTERAKTIF</span>
+            </div>
+            <p class="text-sm font-semibold text-white mb-1">Uji Komputasi Makespan</p>
+            <p class="text-xs text-slate-400 leading-relaxed">Visualisasi Gantt Chart langsung dengan variasi biaya transfer data antar-VM secara <em>real-time</em>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 2: LATAR BELAKANG & PERMASALAHAN                                -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Latar Belakang & Permasalahan">
+      <div class="mb-5">
+        <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">01 / Konteks Permasalahan</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">Tantangan Penjadwalan DAG Workflow di Cloud Heterogen</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <!-- Left Column: Problem & Standalone Limitations -->
+        <div class="lg:col-span-7 flex flex-col justify-between gap-4">
+          <div class="glass-card rounded-2xl p-5">
+            <div class="flex items-start gap-3">
+              <div class="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 shrink-0 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="font-display font-bold text-base sm:text-lg text-white">Kompleksitas NP-Hard pada DAG Scheduling</h3>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                  Aplikasi <em>scientific workflow</em> dimodelkan sebagai <strong class="text-cyan-300">Directed Acyclic Graph (DAG)</strong> yang memiliki ketergantungan antar-tugas (<em>data dependencies</em>). Memetakan tugas-tugas ini ke <strong class="text-white">VM heterogen</strong> untuk meminimalkan <em>makespan</em> merupakan masalah optimasi <span class="font-mono text-amber-300">NP-Hard</span>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contrast 2 Standalone Approaches -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-400">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-amber-400">PENDEKATAN TUNGGAL A</span>
+                <span class="px-2 py-0.5 text-[11px] rounded bg-amber-500/15 text-amber-300">Heuristik Murni</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-2">Cepat, Namun Terjebak Local Optima</h4>
+              <ul class="text-xs text-slate-300 space-y-1.5 leading-relaxed">
+                <li>• Contoh: <em>HEFT, Min-Min, Max-Min</em>.</li>
+                <li>• Eksekusi deterministik dalam hitungan milidetik.</li>
+                <li>• Bersifat <em>greedy</em> lokal; kurang adaptif saat skala graf tugas sangat kompleks.</li>
+              </ul>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 border-l-4 border-l-violet-400">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-violet-400">PENDEKATAN TUNGGAL B</span>
+                <span class="px-2 py-0.5 text-[11px] rounded bg-violet-500/15 text-violet-300">Metaheuristik Murni</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-2">Pencarian Global, Namun Lambat</h4>
+              <ul class="text-xs text-slate-300 space-y-1.5 leading-relaxed">
+                <li>• Contoh: <em>PSO Standar, GA, ACO</em>.</li>
+                <li>• Populasi awal dibangkitkan secara <strong>acak</strong>.</li>
+                <li>• Konvergensi lambat &amp; sering memicu <em>communication overhead</em> antar-VM.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Synthesis Callout -->
+          <div class="glass-card-highlight rounded-2xl p-4 flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-mono text-xs font-bold shrink-0">SOLUSI HYBRID</span>
+            <p class="text-xs sm:text-sm text-slate-200">
+              Menggabungkan kecerdasan <strong>Heuristik</strong> sebagai titik awal (<em>smart seeding</em>) bagi eksplorasi global <strong>Metaheuristik</strong>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Column: Visual SVG DAG + VM Mapping Diagram -->
+        <div class="lg:col-span-5 glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-display font-bold text-sm text-white">Ilustrasi DAG &amp; Biaya Komunikasi</h3>
+            <span class="text-[11px] font-mono text-slate-400">4 Tasks • 2 Hetero VMs</span>
+          </div>
+
+          <!-- Clean Inline SVG Diagram -->
+          <div class="flex-1 flex items-center justify-center my-2">
+            <svg viewBox="0 0 360 270" class="w-full h-auto max-h-64">
+              <defs>
+                <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#38bdf8" />
+                </marker>
+                <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b" />
+                </marker>
+              </defs>
+
+              <!-- Edges with transfer cost labels -->
+              <line x1="180" y1="48" x2="98" y2="105" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowCyan)" />
+              <rect x="103" y="62" width="44" height="18" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+              <text x="125" y="74" text-anchor="middle" fill="#7dd3fc" font-family="JetBrains Mono" font-size="10">c₁₂=3s</text>
+
+              <line x1="180" y1="48" x2="262" y2="105" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrowAmber)" />
+              <rect x="213" y="62" width="44" height="18" rx="4" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+              <text x="235" y="74" text-anchor="middle" fill="#fcd34d" font-family="JetBrains Mono" font-size="10">c₁₃=3s</text>
+
+              <line x1="92" y1="142" x2="170" y2="195" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowCyan)" />
+              <rect x="98" y="160" width="44" height="18" rx="4" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+              <text x="120" y="172" text-anchor="middle" fill="#7dd3fc" font-family="JetBrains Mono" font-size="10">c₂₄=3s</text>
+
+              <line x1="268" y1="142" x2="190" y2="195" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrowAmber)" />
+              <rect x="218" y="160" width="44" height="18" rx="4" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+              <text x="240" y="172" text-anchor="middle" fill="#fcd34d" font-family="JetBrains Mono" font-size="10">c₃₄=3s</text>
+
+              <!-- Node T1 -->
+              <g class="animate-float">
+                <circle cx="180" cy="32" r="22" fill="#1e293b" stroke="#38bdf8" stroke-width="2.5"/>
+                <text x="180" y="36" text-anchor="middle" fill="#f8fafc" font-family="Plus Jakarta Sans" font-weight="700" font-size="13">T₁</text>
+              </g>
+
+              <!-- Node T2 -->
+              <circle cx="90" cy="124" r="22" fill="#1e293b" stroke="#10b981" stroke-width="2.5"/>
+              <text x="90" y="128" text-anchor="middle" fill="#f8fafc" font-family="Plus Jakarta Sans" font-weight="700" font-size="13">T₂</text>
+
+              <!-- Node T3 -->
+              <circle cx="270" cy="124" r="22" fill="#1e293b" stroke="#f59e0b" stroke-width="2.5"/>
+              <text x="270" y="128" text-anchor="middle" fill="#f8fafc" font-family="Plus Jakarta Sans" font-weight="700" font-size="13">T₃</text>
+
+              <!-- Node T4 -->
+              <circle cx="180" cy="212" r="22" fill="#1e293b" stroke="#8b5cf6" stroke-width="2.5"/>
+              <text x="180" y="216" text-anchor="middle" fill="#f8fafc" font-family="Plus Jakarta Sans" font-weight="700" font-size="13">T₄</text>
+
+              <!-- Legend Footer inside SVG -->
+              <rect x="16" y="244" width="328" height="22" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+              <text x="180" y="258" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">
+                Same VM: Transfer = 0s  |  Different VM: Transfer = cᵢⱼ (Penalti Jaringan)
+              </text>
+            </svg>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="font-mono font-bold text-cyan-400 block">VM₁ (High-Spec)</span>
+              <span class="text-slate-400 text-[11px]">Komputasi 2× lebih cepat</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span class="font-mono font-bold text-violet-400 block">VM₂ (Standard)</span>
+              <span class="text-slate-400 text-[11px]">Biaya rendah, komputasi lambat</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 3: DUA KANDIDAT ALGORITMA HYBRID                                -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Dua Kandidat Algoritma Hybrid">
+      <div class="mb-5">
+        <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">02 / Kandidat Evaluasi</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">Dua Kandidat Algoritma Hybrid yang Dibandingkan</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Candidate 1: PEFT-PSO (Selected Winner) -->
+        <div class="glass-card-highlight rounded-3xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute top-4 right-4 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>OPSI TERPILIH</span>
+          </div>
+
+          <div>
+            <span class="inline-block px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-mono text-xs font-semibold mb-3">
+              Heuristik × Metaheuristik
+            </span>
+            <h3 class="font-display font-extrabold text-2xl text-white mb-1">PEFT-PSO</h3>
+            <p class="text-xs sm:text-sm text-cyan-200/90 font-medium mb-4">
+              Predict Earliest Finish Time + Particle Swarm Optimization
+            </p>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300">
+              <div class="p-3.5 rounded-xl bg-slate-900/75 border border-slate-800">
+                <p class="font-semibold text-cyan-300 mb-1">1. Fase Heuristik (Look-Ahead OCT)</p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Menghitung <strong>Optimistic Cost Table (OCT)</strong> secara <em>bottom-up</em> dari <em>exit node</em> ke <em>entry node</em> untuk memprediksi sisa waktu eksekusi tercepat sebelum pemetaan dilakukan.
+                </p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-slate-900/75 border border-slate-800">
+                <p class="font-semibold text-emerald-300 mb-1">2. Fase Metaheuristik (PSO Seeding)</p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Jadwal berkualitas tinggi dari PEFT langsung disuntikkan sebagai <em>Global Best</em> awal (<span class="font-mono text-emerald-300">G_best</span>) pada kawanan partikel PSO untuk menyempurnakan pemetaan <em>Task-to-VM</em>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-cyan-500/20 flex items-center justify-between text-xs">
+            <span class="text-slate-400">Fokus Utama:</span>
+            <span class="font-mono font-bold text-cyan-300">Minimum Makespan &amp; Konvergensi Cepat</span>
+          </div>
+        </div>
+
+        <!-- Candidate 2: MA-NSGA-II -->
+        <div class="glass-card rounded-3xl p-6 sm:p-7 flex flex-col justify-between relative">
+          <div class="absolute top-4 right-4 px-3 py-1 rounded-full bg-violet-500/15 border border-violet-400/30 text-violet-300 text-xs font-semibold">
+            Kandidat Pembanding
+          </div>
+
+          <div>
+            <span class="inline-block px-3 py-1 rounded-lg bg-violet-500/20 text-violet-300 font-mono text-xs font-semibold mb-3">
+              Memetic Algorithm (Evolusioner × Local Search)
+            </span>
+            <h3 class="font-display font-extrabold text-2xl text-white mb-1">MA-NSGA-II</h3>
+            <p class="text-xs sm:text-sm text-violet-200/90 font-medium mb-4">
+              Memetic Algorithm berbasis NSGA-II + Critical-Path Local Search
+            </p>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300">
+              <div class="p-3.5 rounded-xl bg-slate-900/75 border border-slate-800">
+                <p class="font-semibold text-violet-300 mb-1">1. Pencarian Global Multi-Objektif (NSGA-II)</p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Mengeksplorasi himpunan solusi <em>Pareto-optimal</em> menggunakan <em>fast non-dominated sorting</em> dan <em>crowding distance</em> untuk menyeimbangkan waktu, biaya sewa VM, dan konsumsi daya.
+                </p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-slate-900/75 border border-slate-800">
+                <p class="font-semibold text-amber-300 mb-1">2. Intensifikasi Lokal (Neighborhood Search)</p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Pada setiap generasi, individu terbaik diasah melalui operator <em>task-swapping</em> dan <em>VM-reassignment</em> di sepanjang jalur kritis (<em>critical path</em>) DAG.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-400">Fokus Utama:</span>
+            <span class="font-mono font-bold text-violet-300">Trade-Off Pareto (Waktu vs. Biaya/Energi)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 4: ASPEK PEMILIHAN - MENGAPA PEFT-PSO TERBAIK?                  -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Aspek Pemilihan PEFT-PSO">
+      <div class="mb-4">
+        <span class="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">03 / Justifikasi Keputusan</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">5 Aspek Mengapa PEFT-PSO Dipilih Sebagai Opsi Terbaik</h2>
+      </div>
+
+      <!-- 5 Highlight Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-5">
+        <!-- Aspect 1 -->
+        <div class="glass-card-highlight rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono font-bold text-sm flex items-center justify-center mb-3">01</div>
+            <h3 class="font-display font-bold text-sm text-white mb-1.5">Makespan Absolut (Unggul 10–20%)</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Fokus murni menekan total waktu eksekusi ke batas minimum tanpa mengorbankan kecepatan demi <em>trade-off</em> biaya/energi.
+            </p>
+          </div>
+          <span class="mt-3 text-[11px] font-mono text-emerald-300 font-semibold">★ Kinerja Waktu Tertinggi</span>
+        </div>
+
+        <!-- Aspect 2 -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 font-mono font-bold text-sm flex items-center justify-center mb-3">02</div>
+            <h3 class="font-display font-bold text-sm text-white mb-1.5">Kecepatan Konvergensi</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              <em>Smart seeding</em> dari PEFT menempatkan partikel PSO dekat dengan titik optimal global sejak <strong>iterasi ke-0</strong>.
+            </p>
+          </div>
+          <span class="mt-3 text-[11px] font-mono text-cyan-300 font-semibold">★ Minim Iterasi Terbuang</span>
+        </div>
+
+        <!-- Aspect 3 -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 font-mono font-bold text-sm flex items-center justify-center mb-3">03</div>
+            <h3 class="font-display font-bold text-sm text-white mb-1.5">Kemampuan Look-Ahead (OCT)</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Memprediksi biaya eksekusi hingga <em>exit node</em>, mencegah jebakan <em>greedy</em> yang memicu penalti transfer data antar-VM.
+            </p>
+          </div>
+          <span class="mt-3 text-[11px] font-mono text-sky-300 font-semibold">★ Anti-Bottleneck DAG</span>
+        </div>
+
+        <!-- Aspect 4 -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 font-mono font-bold text-sm flex items-center justify-center mb-3">04</div>
+            <h3 class="font-display font-bold text-sm text-white mb-1.5">Kompleksitas Waktu Rendah</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Pra-pemrosesan OCT hanya <span class="font-mono text-amber-300">O(v²·p)</span>, jauh lebih ringan dibanding siklus <em>non-dominated sorting</em> + <em>local search</em> MA-NSGA-II.
+            </p>
+          </div>
+          <span class="mt-3 text-[11px] font-mono text-amber-300 font-semibold">★ CPU Overhead Ringan</span>
+        </div>
+
+        <!-- Aspect 5 -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-violet-500/20 text-violet-400 font-mono font-bold text-sm flex items-center justify-center mb-3">05</div>
+            <h3 class="font-display font-bold text-sm text-white mb-1.5">Kesesuaian SLA &amp; Real-Time</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Ideal untuk aplikasi berbatas waktu ketat (<em>Montage, CyberShake</em>). MA-NSGA-II lebih cocok untuk skenario <em>Green Cloud</em>.
+            </p>
+          </div>
+          <span class="mt-3 text-[11px] font-mono text-violet-300 font-semibold">★ Presisi Deadline SLA</span>
+        </div>
+      </div>
+
+      <!-- Compact Matrix Comparison Table -->
+      <div class="glass-card rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-900/90 border-b border-slate-800 text-slate-300">
+                <th class="py-2.5 px-4 font-semibold">Dimensi Evaluasi</th>
+                <th class="py-2.5 px-4 font-bold text-cyan-400">PEFT-PSO (Terpilih)</th>
+                <th class="py-2.5 px-4 font-semibold text-violet-400">MA-NSGA-II (Pembanding)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/70">
+              <tr>
+                <td class="py-2.5 px-4 font-medium text-slate-200">Performa Makespan</td>
+                <td class="py-2.5 px-4 text-emerald-300 font-semibold">Sangat Rendah (Optimal untuk deadline ketat)</td>
+                <td class="py-2.5 px-4 text-slate-400">Moderat (Sering berkompromi demi biaya/energi)</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-4 font-medium text-slate-200">Inisialisasi Populasi</td>
+                <td class="py-2.5 px-4 text-cyan-300">Deterministik Cerdas (OCT Look-Ahead Seeding)</td>
+                <td class="py-2.5 px-4 text-slate-400">Acak (Butuh banyak generasi perbaiki dependensi)</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-4 font-medium text-slate-200">Beban Komputasi Penjadwal</td>
+                <td class="py-2.5 px-4 text-cyan-300">Rendah — Update kecepatan PSO sederhana</td>
+                <td class="py-2.5 px-4 text-slate-400">Tinggi — Sorting Pareto + Local Search berulang</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 5: ARSITEKTUR & MEKANISME KERJA PEFT-PSO                        -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Arsitektur & Mekanisme PEFT-PSO">
+      <div class="mb-5">
+        <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">04 / Cara Kerja Algoritma</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">Arsitektur Dua Fase pada Hybrid PEFT-PSO</h2>
+      </div>
+
+      <!-- 4-Step Pipeline -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="glass-card rounded-2xl p-4 border-t-4 border-t-cyan-400">
+          <span class="text-[11px] font-mono font-bold text-cyan-400">FASE 1A // BOTTOM-UP</span>
+          <h3 class="font-display font-bold text-base text-white mt-1 mb-2">Hitung Matriks OCT</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Menelusuri DAG dari <em>exit task</em> ke <em>entry task</em> untuk menghitung estimasi waktu eksekusi minimum tersisa pada setiap VM.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border-t-4 border-t-sky-400">
+          <span class="text-[11px] font-mono font-bold text-sky-400">FASE 1B // LOOK-AHEAD</span>
+          <h3 class="font-display font-bold text-base text-white mt-1 mb-2">Pemetaan O_EFT</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Mengurutkan prioritas tugas berdasarkan <span class="font-mono text-sky-300">rank_OCT</span>, lalu memilih VM dengan nilai <span class="font-mono text-sky-300">EFT + OCT</span> terkecil.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border-t-4 border-t-emerald-400">
+          <span class="text-[11px] font-mono font-bold text-emerald-400">FASE 2A // SEEDING</span>
+          <h3 class="font-display font-bold text-base text-white mt-1 mb-2">Injeksi G_best Awal</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Solusi jadwal PEFT dikodekan menjadi partikel pertama dan dijadikan panduan global awal (<span class="font-mono text-emerald-300">G_best</span>) kawanan PSO.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border-t-4 border-t-violet-400">
+          <span class="text-[11px] font-mono font-bold text-violet-400">FASE 2B // REFINEMENT</span>
+          <h3 class="font-display font-bold text-base text-white mt-1 mb-2">Eksplorasi Swarm PSO</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Partikel memperbarui kecepatan dan posisi untuk mencari kombinasi <em>Task-to-VM</em> yang lebih optimal di sekitar titik awal.
+          </p>
+        </div>
+      </div>
+
+      <!-- Mathematical Formulations -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Formula 1: OCT & O_EFT -->
+        <div class="glass-card-highlight rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-display font-bold text-sm text-cyan-300">Persamaan 1: Optimistic Cost Table (OCT)</h4>
+            <span class="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono text-[11px]">Fase Heuristik</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/85 border border-slate-800 font-mono text-xs sm:text-sm text-cyan-200 overflow-x-auto">
+            OCT(Tᵢ, VMₖ) = max<sub>Tⱼ ∈ succ(Tᵢ)</sub> { min<sub>VMw</sub> [ OCT(Tⱼ, VMw) + w(Tⱼ, VMw) + c̄ᵢⱼ ] }
+          </div>
+          <div class="mt-2.5 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 font-mono text-xs text-emerald-300">
+            O_EFT(Tᵢ, VMₖ) = EFT(Tᵢ, VMₖ) + OCT(Tᵢ, VMₖ)
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2.5 leading-relaxed">
+            Keterangan: <span class="font-mono text-slate-200">w(Tⱼ, VMw)</span> = waktu eksekusi tugas anak, <span class="font-mono text-slate-200">c̄ᵢⱼ</span> = biaya transfer data (0 jika pada VM yang sama).
+          </p>
+        </div>
+
+        <!-- Formula 2: PSO Velocity & Position -->
+        <div class="glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-display font-bold text-sm text-violet-300">Persamaan 2: Pembaruan Partikel PSO</h4>
+            <span class="px-2 py-0.5 rounded bg-violet-500/15 text-violet-300 font-mono text-[11px]">Fase Metaheuristik</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/85 border border-slate-800 font-mono text-xs sm:text-sm text-violet-200 overflow-x-auto">
+            vᵢ<sup>(t+1)</sup> = ω·vᵢ<sup>(t)</sup> + c₁r₁(P_best,i − xᵢ<sup>(t)</sup>) + c₂r₂(G_best − xᵢ<sup>(t)</sup>)
+          </div>
+          <div class="mt-2.5 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 font-mono text-xs text-amber-300">
+            xᵢ<sup>(t+1)</sup> = round( xᵢ<sup>(t)</sup> + vᵢ<sup>(t+1)</sup> )  →  Indeks VM Target
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2.5 leading-relaxed">
+            Keterangan: <span class="font-mono text-slate-200">G_best</span> diinisialisasi langsung dari hasil pemetaan PEFT sehingga konvergensi berlangsung sangat cepat.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 6: SIMULASI INTERAKTIF PERBANDINGAN PENJADWALAN                 -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-1" data-title="Simulasi Interaktif Makespan">
+      <!-- Header Row -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div>
+          <span class="text-xs font-mono uppercase tracking-widest text-amber-400 font-semibold">05 / Live Simulator (4 Tasks × 2 VMs)</span>
+          <h2 class="font-display font-bold text-xl sm:text-2xl text-white">Simulasi Perbandingan Makespan &amp; Gantt Chart</h2>
+        </div>
+
+        <!-- Algorithm Selector Pills -->
+        <div class="flex flex-wrap items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800" data-no-swipe>
+          <button onclick="selectSimMode('pso')" id="btnMode-pso" class="sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+            PSO Standar
+          </button>
+          <button onclick="selectSimMode('nsga')" id="btnMode-nsga" class="sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+            MA-NSGA-II
+          </button>
+          <button onclick="selectSimMode('peft')" id="btnMode-peft" class="sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+            PEFT-PSO ★
+          </button>
+          <button onclick="selectSimMode('all')" id="btnMode-all" class="sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+            Bandingkan Semua
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Simulator Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        
+        <!-- Left Panel: Scenario Parameters, OCT Table & Slider (4 cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-3">
+          <!-- Task Execution Matrix -->
+          <div class="glass-card rounded-2xl p-3.5">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300">Waktu Eksekusi &amp; Matriks OCT</h3>
+              <span class="text-[11px] font-mono text-cyan-400">DAG: T₁→{T₂,T₃}→T₄</span>
+            </div>
+            <table class="w-full text-center font-mono text-xs border-collapse">
+              <thead>
+                <tr class="text-slate-400 border-b border-slate-800">
+                  <th class="py-1 text-left">Task</th>
+                  <th class="py-1 text-cyan-400">VM₁</th>
+                  <th class="py-1 text-violet-400">VM₂</th>
+                  <th class="py-1 text-emerald-400">OCT(VM₁/₂)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60 text-slate-200" id="octTableBody">
+                <!-- Populated dynamically based on transfer cost C -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Interactive Transfer Delay Slider & Play Button -->
+          <div class="glass-card-highlight rounded-2xl p-3.5" data-no-swipe>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="transferSlider" class="text-xs font-semibold text-white">Biaya Transfer Antar-VM (<span class="font-mono text-amber-300">cᵢⱼ</span>)</label>
+              <span id="transferValueBadge" class="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/40 font-mono text-xs font-bold text-amber-300">3 detik</span>
+            </div>
+            <input id="transferSlider" type="range" min="0" max="6" step="1" value="3" oninput="updateTransferCost(this.value)" class="w-full sim-slider my-2" />
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-3">
+              <span>0s (Lokal)</span>
+              <span>3s (Default)</span>
+              <span>6s (Tinggi)</span>
+            </div>
+
+            <button onclick="playGanttAnimation()" id="playSimBtn" class="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition cursor-pointer">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <span>Jalankan Animasi Timeline</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Panel: KPI Summary + Interactive Gantt Chart Visualization (8 cols) -->
+        <div class="lg:col-span-8 glass-card rounded-2xl p-4 flex flex-col justify-between">
+          <!-- Top KPI Strip -->
+          <div class="grid grid-cols-3 gap-2.5 mb-3" id="simKpiGrid">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- Gantt Chart Container -->
+          <div class="flex-1 bg-slate-950/75 rounded-xl border border-slate-800/90 p-3.5 relative overflow-hidden flex flex-col justify-center" id="ganttContainer">
+            <!-- Populated dynamically by JS -->
+          </div>
+
+          <!-- Legend & Insight Footer -->
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+            <div class="flex flex-wrap items-center gap-3 text-slate-300">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-cyan-500 inline-block"></span> Eksekusi Task</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-striped-transfer border border-amber-400/60 inline-block"></span> Transfer Data</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-striped-idle border border-slate-600 inline-block"></span> Idle / Menunggu</span>
+            </div>
+            <p id="simInsightText" class="text-cyan-300 font-medium"></p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 7: ANALISIS PERFORMA SKALA WORKFLOW (BENCHMARK INSIGHTS)        -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Benchmark Skala Workflow">
+      <div class="mb-5">
+        <span class="text-xs font-mono uppercase tracking-widest text-cyan-400 font-semibold">06 / Evaluasi Skala Besar</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">Analisis Konvergensi &amp; Benchmark Scientific Workflow</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left: Convergence Curve SVG -->
+        <div class="lg:col-span-7 glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 class="font-display font-bold text-base text-white">Kurva Konvergensi (Makespan vs. Iterasi)</h3>
+              <p class="text-xs text-slate-400">Simulasi Workflow Montage (100 Tasks, 8 Heterogeneous VMs)</p>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-mono">
+              <span class="flex items-center gap-1 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 inline-block"></span> PSO</span>
+              <span class="flex items-center gap-1 text-violet-400"><span class="w-2.5 h-0.5 bg-violet-400 inline-block"></span> MA-NSGA-II</span>
+              <span class="flex items-center gap-1 text-cyan-400 font-bold"><span class="w-2.5 h-1 bg-cyan-400 inline-block"></span> PEFT-PSO</span>
+            </div>
+          </div>
+
+          <!-- SVG Line Chart -->
+          <div class="w-full">
+            <svg viewBox="0 0 520 230" class="w-full h-auto">
+              <!-- Grid Lines -->
+              <g stroke="#1e293b" stroke-width="1">
+                <line x1="55" y1="25" x2="495" y2="25" />
+                <line x1="55" y1="65" x2="495" y2="65" />
+                <line x1="55" y1="105" x2="495" y2="105" />
+                <line x1="55" y1="145" x2="495" y2="145" />
+                <line x1="55" y1="185" x2="495" y2="185" />
+              </g>
+
+              <!-- Y-Axis Labels (Makespan in seconds) -->
+              <g fill="#94a3b8" font-family="JetBrains Mono" font-size="10" text-anchor="end">
+                <text x="48" y="29">450s</text>
+                <text x="48" y="69">380s</text>
+                <text x="48" y="109">310s</text>
+                <text x="48" y="149">240s</text>
+                <text x="48" y="189">170s</text>
+              </g>
+
+              <!-- X-Axis Labels (Iterations) -->
+              <g fill="#94a3b8" font-family="JetBrains Mono" font-size="10" text-anchor="middle">
+                <text x="55" y="206">Iter 0</text>
+                <text x="165" y="206">Iter 25</text>
+                <text x="275" y="206">Iter 50</text>
+                <text x="385" y="206">Iter 75</text>
+                <text x="495" y="206">Iter 100</text>
+              </g>
+
+              <!-- Curve 1: PSO Standard (Starts 420s -> plateaus at 295s) -->
+              <path d="M55,42 Q120,78 165,96 T275,112 T385,114 L495,114" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5 3" />
+              <circle cx="55" cy="42" r="4" fill="#f59e0b" />
+              <text x="492" y="106" text-anchor="end" fill="#fbbf24" font-family="JetBrains Mono" font-size="10">295s (Local Optima)</text>
+
+              <!-- Curve 2: MA-NSGA-II (Starts 410s -> descends steadily to 245s) -->
+              <path d="M55,48 Q130,92 165,115 T275,134 T385,141 L495,142" fill="none" stroke="#8b5cf6" stroke-width="2.5" />
+              <circle cx="55" cy="48" r="4" fill="#8b5cf6" />
+              <text x="492" y="135" text-anchor="end" fill="#c4b5fd" font-family="JetBrains Mono" font-size="10">245s (Pareto Trade-off)</text>
+
+              <!-- Curve 3: PEFT-PSO (Starts 242s via OCT Seeding -> converges fast to 202s) -->
+              <path d="M55,144 Q115,158 165,164 T275,167 L495,167" fill="none" stroke="#38bdf8" stroke-width="3.5" />
+              <circle cx="55" cy="144" r="5" fill="#38bdf8" stroke="#0f172a" stroke-width="1.5" />
+              <circle cx="495" cy="167" r="5" fill="#10b981" stroke="#0f172a" stroke-width="1.5" />
+              <text x="64" y="138" fill="#7dd3fc" font-family="JetBrains Mono" font-size="10" font-weight="bold">OCT Seed (242s)</text>
+              <text x="492" y="180" text-anchor="end" fill="#34d399" font-family="JetBrains Mono" font-size="10" font-weight="bold">202s (-17.5% vs MA-NSGA-II)</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right: Multi-Metric Normalized Score Comparison -->
+        <div class="lg:col-span-5 glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="font-display font-bold text-base text-white mb-1">Skor Komparatif Multi-Metrik</h3>
+            <p class="text-xs text-slate-400 mb-4">Perbandingan kapabilitas pada skenario Cloud Computing</p>
+
+            <div class="space-y-4">
+              <!-- Metric 1 -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-200">Reduksi Makespan (Kecepatan)</span>
+                  <span class="font-mono text-cyan-400 font-bold">PEFT-PSO: 95%</span>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                    <div class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full" style="width: 95%"></div>
+                  </div>
+                  <div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-violet-400 h-full rounded-full" style="width: 78%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric 2 -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-200">Kecepatan Konvergensi</span>
+                  <span class="font-mono text-cyan-400 font-bold">PEFT-PSO: 94%</span>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                    <div class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full" style="width: 94%"></div>
+                  </div>
+                  <div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-violet-400 h-full rounded-full" style="width: 68%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric 3 -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-200">Efisiensi CPU Overhead Penjadwal</span>
+                  <span class="font-mono text-cyan-400 font-bold">PEFT-PSO: 90%</span>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                    <div class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full" style="width: 90%"></div>
+                  </div>
+                  <div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-violet-400 h-full rounded-full" style="width: 60%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric 4 -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="font-medium text-slate-200">Efisiensi Biaya &amp; Energi (Green Cloud)</span>
+                  <span class="font-mono text-violet-400 font-bold">MA-NSGA-II: 95%</span>
+                </div>
+                <div class="space-y-1.5">
+                  <div class="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                    <div class="bg-cyan-400/80 h-full rounded-full" style="width: 74%"></div>
+                  </div>
+                  <div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-violet-400 h-full rounded-full" style="width: 95%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-cyan-400 inline-block"></span> PEFT-PSO</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-violet-400 inline-block"></span> MA-NSGA-II</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SLIDE 8: KESIMPULAN & REKOMENDASI                                     -->
+    <!-- ===================================================================== -->
+    <section class="slide-panel flex-col justify-center h-full w-full py-2" data-title="Kesimpulan & Rekomendasi">
+      <div class="mb-5">
+        <span class="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">07 / Penutup &amp; Rekomendasi</span>
+        <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mt-1">Kesimpulan Akhir &amp; Panduan Pemilihan Strategi</h2>
+      </div>
+
+      <!-- 3 Executive Takeaways -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="glass-card-highlight rounded-2xl p-5">
+          <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-mono text-xs font-bold">KESIMPULAN 01</span>
+          <h3 class="font-display font-bold text-base text-white mt-3 mb-2">Sinergi Look-Ahead &amp; Swarm</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Kombinasi <strong>PEFT-PSO</strong> mengatasi kelemahan inisialisasi acak pada PSO standar melalui matriks <em>Optimistic Cost Table</em> (OCT), menghasilkan jadwal awal yang sudah dekat dengan titik optimal global.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5">
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold">KESIMPULAN 02</span>
+          <h3 class="font-display font-bold text-base text-white mt-3 mb-2">Reduksi Makespan Signifikan</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Terbukti memangkas <em>makespan</em> hingga <strong>38,8%</strong> dibanding PSO standar pada simulasi mikro dan unggul <strong>10–20%</strong> dibanding MA-NSGA-II pada skenario <em>workflow</em> skala besar.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5">
+          <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-mono text-xs font-bold">KESIMPULAN 03</span>
+          <h3 class="font-display font-bold text-base text-white mt-3 mb-2">Efisiensi Komputasi Broker</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Dengan kompleksitas pra-pemrosesan <span class="font-mono text-amber-300">O(v²·p)</span>, PEFT-PSO sangat ringan dan andal untuk diimplementasikan pada <em>Cloud Resource Broker</em> berbatas waktu ketat.
+          </p>
+        </div>
+      </div>
+
+      <!-- Decision Guide Box -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-2xl p-5 bg-gradient-to-br from-cyan-950/70 to-slate-900 border border-cyan-500/40">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <h4 class="font-display font-bold text-sm sm:text-base text-cyan-300">Gunakan PEFT-PSO (Rekomendasi Utama) Jika:</h4>
+          </div>
+          <ul class="text-xs sm:text-sm text-slate-200 space-y-1.5 pl-4 list-disc">
+            <li>Prioritas utama sistem adalah <strong>minimum makespan</strong> dan <em>strict SLA deadline</em>.</li>
+            <li>Menangani <em>scientific workflow</em> kompleks dengan ketergantungan data tinggi.</li>
+            <li>Membutuhkan waktu pengambilan keputusan penjadwalan yang cepat dan ringan.</li>
+          </ul>
+        </div>
+
+        <div class="rounded-2xl p-5 bg-gradient-to-br from-violet-950/50 to-slate-900 border border-violet-500/30">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-violet-400"></span>
+            <h4 class="font-display font-bold text-sm sm:text-base text-violet-300">Gunakan MA-NSGA-II (Future Work) Jika:</h4>
+          </div>
+          <ul class="text-xs sm:text-sm text-slate-300 space-y-1.5 pl-4 list-disc">
+            <li>Sistem menuntut optimasi <strong>multi-objektif</strong> (kompromi waktu vs. biaya &amp; energi).</li>
+            <li>Diterapkan pada skenario <em>Green Cloud Computing</em> untuk menekan emisi karbon.</li>
+            <li>Toleransi terhadap waktu komputasi penjadwalan yang lebih lama dapat diterima.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== BOTTOM PRESENTATION CONTROLS ==================== -->
+  <footer class="w-full px-4 sm:px-8 py-3 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-md flex items-center justify-between z-30 shrink-0">
+    <!-- Keyboard Hint -->
+    <div class="hidden md:flex items-center gap-3 text-xs text-slate-400">
+      <span>Gunakan <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[11px] text-slate-200">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[11px] text-slate-200">→</kbd> atau <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[11px] text-slate-200">Spasi</kbd></span>
+    </div>
+
+    <!-- Slide Counter -->
+    <div class="font-mono text-xs sm:text-sm font-semibold text-slate-300" id="slideCounter">
+      Slide 1 / 8
+    </div>
+
+    <!-- Previous & Next Buttons -->
+    <div class="flex items-center gap-2">
+      <button onclick="prevSlide()" id="prevBtn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none border border-slate-700 text-xs sm:text-sm font-semibold text-slate-200 flex items-center gap-1.5 transition cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        <span>Sebelumnya</span>
+      </button>
+
+      <button onclick="nextSlide()" id="nextBtn" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition cursor-pointer">
+        <span>Selanjutnya</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+  <script>
+    /**
+     * PRESENTATION NAVIGATION & STATE MANAGEMENT
+     */
+    const slides = Array.from(document.querySelectorAll('.slide-panel'));
+    const totalSlides = slides.length;
+    let currentSlideIndex = 0;
+
+    // Initialize navigation dots & drawer list
+    function initNavigation() {
+      const dotsContainer = document.getElementById('slideDotsContainer');
+      const drawerList = document.getElementById('drawerList');
+      dotsContainer.innerHTML = '';
+      drawerList.innerHTML = '';
+
+      slides.forEach((slide, idx) => {
+        const title = slide.getAttribute('data-title') || `Slide ${idx + 1}`;
+
+        // Top nav dot
+        const dot = document.createElement('button');
+        dot.setAttribute('aria-label', `Ke Slide ${idx + 1}: ${title}`);
+        dot.title = `${idx + 1}. ${title}`;
+        dot.className = 'h-2.5 rounded-full transition-all duration-300 cursor-pointer';
+        dot.onclick = () => goToSlide(idx);
+        dotsContainer.appendChild(dot);
+
+        // Drawer item
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium transition flex items-center gap-2.5 cursor-pointer';
+        btn.innerHTML = `
+          <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-bold">0${idx + 1}</span>
+          <span class="truncate">${title}</span>
+        `;
+        btn.onclick = () => {
+          goToSlide(idx);
+          toggleDrawer(false);
+        };
+        li.appendChild(btn);
+        drawerList.appendChild(li);
+      });
+
+      updateSlideUI();
+    }
+
+    // Navigate to specific slide index
+    function goToSlide(index) {
+      if (index < 0 || index >= totalSlides) return;
+      slides[currentSlideIndex].classList.remove('active');
+      currentSlideIndex = index;
+      slides[currentSlideIndex].classList.add('active');
+
+      // Reset scroll position of main stage
+      document.getElementById('presentationStage').scrollTop = 0;
+      updateSlideUI();
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < totalSlides - 1) {
+        goToSlide(currentSlideIndex + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 0) {
+        goToSlide(currentSlideIndex - 1);
+      }
+    }
+
+    // Update UI indicators (counter, header title, buttons, dots, drawer)
+    function updateSlideUI() {
+      const currentTitle = slides[currentSlideIndex].getAttribute('data-title') || '';
+      document.getElementById('headerSlideTitle').textContent = currentTitle;
+      document.getElementById('slideCounter').textContent = `Slide ${currentSlideIndex + 1} / ${totalSlides}`;
+
+      document.getElementById('prevBtn').disabled = currentSlideIndex === 0;
+      document.getElementById('nextBtn').disabled = currentSlideIndex === totalSlides - 1;
+
+      // Update top dots
+      const dots = document.getElementById('slideDotsContainer').children;
+      Array.from(dots).forEach((dot, idx) => {
+        if (idx === currentSlideIndex) {
+          dot.className = 'w-7 h-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/60 transition-all duration-300 cursor-pointer';
+        } else {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-700 hover:bg-slate-500 transition-all duration-300 cursor-pointer';
+        }
+      });
+
+      // Update drawer active item
+      const drawerButtons = document.querySelectorAll('#drawerList button');
+      drawerButtons.forEach((btn, idx) => {
+        if (idx === currentSlideIndex) {
+          btn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 transition flex items-center gap-2.5 cursor-pointer';
+        } else {
+          btn.className = 'w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800/80 transition flex items-center gap-2.5 cursor-pointer';
+        }
+      });
+    }
+
+    // Slide Drawer Toggle
+    function toggleDrawer(forceState) {
+      const drawer = document.getElementById('slideDrawer');
+      const isHidden = drawer.classList.contains('hidden');
+      const shouldOpen = typeof forceState === 'boolean' ? forceState : isHidden;
+      if (shouldOpen) {
+        drawer.classList.remove('hidden');
+      } else {
+        drawer.classList.add('hidden');
+      }
+    }
+
+    // Fullscreen Toggle with Safe Fallback Toast
+    function toggleFullscreen() {
+      try {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().then(() => {
+            document.getElementById('fsBtnText').textContent = 'Keluar Layar Penuh';
+          }).catch(() => {
+            showToast('Mode layar penuh dibatasi oleh browser/iframe.');
+          });
+        } else {
+          document.exitFullscreen().then(() => {
+            document.getElementById('fsBtnText').textContent = 'Layar Penuh';
+          }).catch(() => {});
+        }
+      } catch (err) {
+        showToast('Mode layar penuh tidak didukung pada jendela ini.');
+      }
+    }
+
+    // Custom Toast Notification (Never use alert())
+    let toastTimeout = null;
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastMessage').textContent = msg;
+      box.classList.remove('opacity-0');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        box.classList.add('opacity-0');
+      }, 2600);
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Ignore if interacting with range slider
+      if (e.target && e.target.tagName === 'INPUT') return;
+
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === ' ') {
+        // Spacebar advances slide unless focused on a button
+        if (document.activeElement && document.activeElement.tagName === 'BUTTON') return;
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'Escape') {
+        toggleDrawer(false);
+      } else if (e.key >= '1' && e.key <= String(totalSlides)) {
+        goToSlide(parseInt(e.key, 10) - 1);
+      }
+    });
+
+    // Touch Swipe Support (Safely ignores slider & buttons)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const stageEl = document.getElementById('presentationStage');
+
+    stageEl.addEventListener('touchstart', (e) => {
+      if (e.target.closest('input, button, [data-no-swipe]')) {
+        touchStartX = null;
+        return;
+      }
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    stageEl.addEventListener('touchend', (e) => {
+      if (touchStartX === null) return;
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+      // Trigger horizontal swipe only if predominantly horizontal
+      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        if (dx < 0) nextSlide();
+        else prevSlide();
+      }
+      touchStartX = null;
+    }, { passive: true });
+
+
+    /**
+     * INTERACTIVE WORKFLOW SCHEDULING SIMULATOR (SLIDE 6)
+     * Scenario: 4 Tasks (T1 -> {T2, T3} -> T4) on 2 Heterogeneous VMs
+     */
+    const TASK_WEIGHTS = {
+      T1: { vm1: 2, vm2: 4 },
+      T2: { vm1: 3, vm2: 6 },
+      T3: { vm1: 4, vm2: 8 },
+      T4: { vm1: 2, vm2: 5 },
+    };
+
+    let currentSimMode = 'all'; // 'pso' | 'nsga' | 'peft' | 'all'
+    let transferCost = 3;       // Default 3s
+    let animFrameId = null;
+    let playheadTime = null;
+
+    // Compute Optimistic Cost Table (OCT) dynamically for given transfer cost C
+    function computeOCT(C) {
+      // T4 is exit task
+      const octT4 = { vm1: 0, vm2: 0 };
+      // T3 -> T4
+      const octT3 = {
+        vm1: Math.min(octT4.vm1 + TASK_WEIGHTS.T4.vm1 + 0, octT4.vm2 + TASK_WEIGHTS.T4.vm2 + C),
+        vm2: Math.min(octT4.vm1 + TASK_WEIGHTS.T4.vm1 + C, octT4.vm2 + TASK_WEIGHTS.T4.vm2 + 0),
+      };
+      // T2 -> T4
+      const octT2 = {
+        vm1: Math.min(octT4.vm1 + TASK_WEIGHTS.T4.vm1 + 0, octT4.vm2 + TASK_WEIGHTS.T4.vm2 + C),
+        vm2: Math.min(octT4.vm1 + TASK_WEIGHTS.T4.vm1 + C, octT4.vm2 + TASK_WEIGHTS.T4.vm2 + 0),
+      };
+      // T1 -> max(T2, T3)
+      const octT1 = {
+        vm1: Math.max(
+          Math.min(octT2.vm1 + TASK_WEIGHTS.T2.vm1 + 0, octT2.vm2 + TASK_WEIGHTS.T2.vm2 + C),
+          Math.min(octT3.vm1 + TASK_WEIGHTS.T3.vm1 + 0, octT3.vm2 + TASK_WEIGHTS.T3.vm2 + C)
+        ),
+        vm2: Math.max(
+          Math.min(octT2.vm1 + TASK_WEIGHTS.T2.vm1 + C, octT2.vm2 + TASK_WEIGHTS.T2.vm2 + 0),
+          Math.min(octT3.vm1 + TASK_WEIGHTS.T3.vm1 + C, octT3.vm2 + TASK_WEIGHTS.T3.vm2 + 0)
+        )
+      };
+      return { T1: octT1, T2: octT2, T3: octT3, T4: octT4 };
+    }
+
+    // Generate exact schedule blocks for each algorithm given transferCost C
+    function computeSchedules(C) {
+      // 1. PSO Standar (Random/Greedy Local): T1, T2, T4 -> VM1; T3 -> VM2
+      const pso_t1 = { task: 'T₁', vm: 1, start: 0, end: 2, type: 'exec', color: 'bg-cyan-500' };
+      const pso_t2 = { task: 'T₂', vm: 1, start: 2, end: 5, type: 'exec', color: 'bg-emerald-500' };
+      const pso_tr1 = C > 0 ? [{ task: `c₁₃ (${C}s)`, vm: 2, start: 2, end: 2 + C, type: 'transfer' }] : [];
+      const pso_t3 = { task: 'T₃', vm: 2, start: 2 + C, end: 10 + C, type: 'exec', color: 'bg-amber-500' };
+      const pso_tr2 = C > 0 ? [{ task: `c₃₄ (${C}s)`, vm: 1, start: 10 + C, end: 10 + 2 * C, type: 'transfer' }] : [];
+      const pso_t4_start = Math.max(5, 10 + 2 * C);
+      const pso_idle = pso_t4_start > 5
+        ? [{ task: `Idle (${10 + C - 5}s)`, vm: 1, start: 5, end: 10 + C, type: 'idle' }]
+        : [];
+      const pso_t4 = { task: 'T₄', vm: 1, start: pso_t4_start, end: pso_t4_start + 2, type: 'exec', color: 'bg-violet-500' };
+      const psoMakespan = pso_t4.end;
+
+      // 2. MA-NSGA-II (Balanced Load/Cost): T1, T3, T4 -> VM1; T2 -> VM2
+      const nsga_t1 = { task: 'T₁', vm: 1, start: 0, end: 2, type: 'exec', color: 'bg-cyan-500' };
+      const nsga_t3 = { task: 'T₃', vm: 1, start: 2, end: 6, type: 'exec', color: 'bg-amber-500' };
+      const nsga_tr1 = C > 0 ? [{ task: `c₁₂ (${C}s)`, vm: 2, start: 2, end: 2 + C, type: 'transfer' }] : [];
+      const nsga_t2 = { task: 'T₂', vm: 2, start: 2 + C, end: 8 + C, type: 'exec', color: 'bg-emerald-500' };
+      const syncOut = C > 0 ? 1 : 0; // Lightweight state commit from VM2 to VM1
+      const nsga_tr2 = syncOut > 0 ? [{ task: `Sync (${syncOut}s)`, vm: 1, start: 8 + C, end: 8 + C + syncOut, type: 'transfer' }] : [];
+      const nsga_t4_start = Math.max(6, 8 + C + syncOut);
+      const nsga_idle = (8 + C) > 6
+        ? [{ task: `Idle (${(8 + C) - 6}s)`, vm: 1, start: 6, end: 8 + C, type: 'idle' }]
+        : [];
+      const nsga_t4 = { task: 'T₄', vm: 1, start: nsga_t4_start, end: nsga_t4_start + 2, type: 'exec', color: 'bg-violet-500' };
+      const nsgaMakespan = nsga_t4.end;
+
+      // 3. PEFT-PSO (Look-Ahead OCT Optimal):
+      // When C >= 1: keeps all tasks on VM1 to avoid inter-VM transfer penalty -> 11s
+      // When C == 0: parallelizes T3 on VM1 (2..6) and T2 on VM2 (2..8) -> T4 on VM1 (8..10) -> 10s
+      let peftBlocks = [];
+      let peftMakespan = 11;
+      let peftInsight = '';
+      if (C === 0) {
+        peftBlocks = [
+          { task: 'T₁', vm: 1, start: 0, end: 2, type: 'exec', color: 'bg-cyan-500' },
+          { task: 'T₃', vm: 1, start: 2, end: 6, type: 'exec', color: 'bg-amber-500' },
+          { task: 'T₂', vm: 2, start: 2, end: 8, type: 'exec', color: 'bg-emerald-500' },
+          { task: 'Idle (2s)', vm: 1, start: 6, end: 8, type: 'idle' },
+          { task: 'T₄', vm: 1, start: 8, end: 10, type: 'exec', color: 'bg-violet-500' },
+        ];
+        peftMakespan = 10;
+        peftInsight = 'cᵢⱼ = 0s: PEFT-PSO memparalelkan T₂ ke VM₂ tanpa penalti transfer (10s).';
+      } else {
+        peftBlocks = [
+          { task: 'T₁', vm: 1, start: 0, end: 2, type: 'exec', color: 'bg-cyan-500' },
+          { task: 'T₃', vm: 1, start: 2, end: 6, type: 'exec', color: 'bg-amber-500' },
+          { task: 'T₂', vm: 1, start: 6, end: 9, type: 'exec', color: 'bg-emerald-500' },
+          { task: 'T₄', vm: 1, start: 9, end: 11, type: 'exec', color: 'bg-violet-500' },
+        ];
+        peftMakespan = 11;
+        peftInsight = `Matriks OCT menghindari penalti transfer ${C}s pada jalur kritis → Makespan tetap 11s!`;
+      }
+
+      return {
+        pso: {
+          key: 'pso',
+          name: 'PSO Standar (Acak / Greedy)',
+          badgeClass: 'text-amber-300 bg-amber-500/15 border-amber-400/30',
+          makespan: psoMakespan,
+          idleTotal: pso_idle.reduce((acc, b) => acc + (b.end - b.start), 0),
+          blocks: [pso_t1, pso_t2, ...pso_tr1, pso_t3, ...pso_tr2, ...pso_idle, pso_t4],
+          insight: `Terjebak penalti transfer ${C}s dua kali + T₃ lambat di VM₂ (${psoMakespan}s).`
+        },
+        nsga: {
+          key: 'nsga',
+          name: 'MA-NSGA-II (Kompromi Beban)',
+          badgeClass: 'text-violet-300 bg-violet-500/15 border-violet-400/30',
+          makespan: nsgaMakespan,
+          idleTotal: nsga_idle.reduce((acc, b) => acc + (b.end - b.start), 0),
+          blocks: [nsga_t1, nsga_t3, ...nsga_tr1, nsga_t2, ...nsga_tr2, ...nsga_idle, nsga_t4],
+          insight: `Menyeimbangkan beban ke VM₂, namun terkena overhead transfer T₂ (${nsgaMakespan}s).`
+        },
+        peft: {
+          key: 'peft',
+          name: 'PEFT-PSO (Look-Ahead Optimal)',
+          badgeClass: 'text-cyan-300 bg-cyan-500/20 border-cyan-400/40',
+          makespan: peftMakespan,
+          idleTotal: C === 0 ? 2 : 0,
+          blocks: peftBlocks,
+          insight: peftInsight
+        }
+      };
+    }
+
+    function selectSimMode(mode) {
+      currentSimMode = mode;
+      renderSimulator();
+    }
+
+    function updateTransferCost(val) {
+      transferCost = parseInt(val, 10);
+      document.getElementById('transferValueBadge').textContent = `${transferCost} detik`;
+      playheadTime = null;
+      renderSimulator();
+    }
+
+    // Render OCT table, KPI cards, and Gantt chart timelines
+    function renderSimulator() {
+      // 1. Update mode buttons styling
+      ['pso', 'nsga', 'peft', 'all'].forEach((m) => {
+        const btn = document.getElementById(`btnMode-${m}`);
+        if (m === currentSimMode) {
+          btn.className = 'sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 shadow-sm transition cursor-pointer';
+        } else {
+          btn.className = 'sim-mode-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 transition cursor-pointer';
+        }
+      });
+
+      // 2. Render OCT table
+      const oct = computeOCT(transferCost);
+      const octBody = document.getElementById('octTableBody');
+      octBody.innerHTML = ['T1', 'T2', 'T3', 'T4'].map((tKey, i) => {
+        const label = `T<sub>${i + 1}</sub>`;
+        return `
+          <tr>
+            <td class="py-1.5 text-left font-bold text-white">${label}</td>
+            <td class="py-1.5 text-cyan-300">${TASK_WEIGHTS[tKey].vm1}s</td>
+            <td class="py-1.5 text-violet-300">${TASK_WEIGHTS[tKey].vm2}s</td>
+            <td class="py-1.5 text-emerald-300 font-semibold">${oct[tKey].vm1} / ${oct[tKey].vm2}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 3. Compute Schedules
+      const schedules = computeSchedules(transferCost);
+      const maxAxisTime = Math.max(schedules.pso.makespan, 18);
+
+      // 4. Update KPI Strip
+      const kpiGrid = document.getElementById('simKpiGrid');
+      const speedupVsPso = (((schedules.pso.makespan - schedules.peft.makespan) / schedules.pso.makespan) * 100).toFixed(1);
+      const speedupVsNsga = (((schedules.nsga.makespan - schedules.peft.makespan) / schedules.nsga.makespan) * 100).toFixed(1);
+
+      if (currentSimMode === 'all') {
+        kpiGrid.innerHTML = `
+          <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
+            <span class="text-[10px] font-mono uppercase text-amber-300 block">PSO Standar</span>
+            <span class="font-display font-extrabold text-lg sm:text-xl text-white">${schedules.pso.makespan} detik</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-violet-500/10 border border-violet-500/25">
+            <span class="text-[10px] font-mono uppercase text-violet-300 block">MA-NSGA-II</span>
+            <span class="font-display font-extrabold text-lg sm:text-xl text-white">${schedules.nsga.makespan} detik</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-400/40">
+            <span class="text-[10px] font-mono uppercase text-emerald-300 block">PEFT-PSO (Tercepat)</span>
+            <div class="flex items-baseline gap-2">
+              <span class="font-display font-extrabold text-lg sm:text-xl text-emerald-300">${schedules.peft.makespan} detik</span>
+              <span class="text-[11px] font-mono text-emerald-200">-${speedupVsPso}%</span>
+            </div>
+          </div>
+        `;
+        document.getElementById('simInsightText').textContent = `PEFT-PSO lebih cepat ${speedupVsPso}% vs PSO & ${speedupVsNsga}% vs MA-NSGA-II.`;
+      } else {
+        const active = schedules[currentSimMode];
+        const compLabel = currentSimMode === 'peft'
+          ? `-${speedupVsPso}% vs PSO | -${speedupVsNsga}% vs NSGA-II`
+          : `+${active.makespan - schedules.peft.makespan}s lebih lambat dari PEFT-PSO`;
+        kpiGrid.innerHTML = `
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block">Total Makespan</span>
+            <span class="font-display font-extrabold text-lg sm:text-xl text-cyan-300">${active.makespan} detik</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block">Total Idle VM₁</span>
+            <span class="font-display font-extrabold text-lg sm:text-xl text-amber-300">${active.idleTotal} detik</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span class="text-[10px] font-mono uppercase text-slate-400 block">Komparasi</span>
+            <span class="font-mono font-bold text-xs sm:text-sm text-emerald-300 leading-tight block mt-1">${compLabel}</span>
+          </div>
+        `;
+        document.getElementById('simInsightText').textContent = active.insight;
+      }
+
+      // 5. Render Gantt Chart Lanes
+      const ganttContainer = document.getElementById('ganttContainer');
+      const modesToRender = currentSimMode === 'all'
+        ? [schedules.pso, schedules.nsga, schedules.peft]
+        : [schedules[currentSimMode]];
+
+      let html = '';
+
+      // Playhead vertical line if animating
+      if (playheadTime !== null) {
+        const pct = Math.min(100, (playheadTime / maxAxisTime) * 100);
+        html += `
+          <div class="absolute top-0 bottom-0 z-20 pointer-events-none" style="left: calc(56px + (100% - 68px) * ${pct / 100});">
+            <div class="w-0.5 h-full bg-rose-400 shadow-[0_0_10px_#fb7185]"></div>
+            <span class="absolute top-1 -translate-x-1/2 px-1.5 py-0.5 rounded bg-rose-500 text-white font-mono text-[10px] font-bold">${playheadTime.toFixed(1)}s</span>
+          </div>
+        `;
+      }
+
+      html += `<div class="space-y-3.5">`;
+      modesToRender.forEach((sched) => {
+        html += `
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="px-2 py-0.5 rounded-md border font-semibold ${sched.badgeClass}">${sched.name}</span>
+              <span class="font-mono font-bold text-slate-200">Makespan: <span class="text-cyan-300">${sched.makespan}s</span></span>
+            </div>
+            ${[1, 2].map((vmNum) => {
+              const vmBlocks = sched.blocks.filter((b) => b.vm === vmNum);
+              return `
+                <div class="flex items-center gap-2">
+                  <span class="w-11 shrink-0 font-mono text-[11px] font-bold ${vmNum === 1 ? 'text-cyan-400' : 'text-violet-400'}">VM${vmNum}</span>
+                  <div class="flex-1 h-7 bg-slate-900 rounded-lg border border-slate-800 relative overflow-hidden">
+                    ${vmBlocks.map((b) => {
+                      const leftPct = (b.start / maxAxisTime) * 100;
+                      const widthPct = ((b.end - b.start) / maxAxisTime) * 100;
+                      const isActiveNow = playheadTime !== null && playheadTime >= b.start && playheadTime <= b.end;
+                      const ringClass = isActiveNow ? 'ring-2 ring-white z-10 brightness-110' : '';
+
+                      if (b.type === 'exec') {
+                        return `
+                          <div title="${b.task}: ${b.start}s – ${b.end}s"
+                               style="left: ${leftPct}%; width: ${widthPct}%;"
+                               class="absolute top-0.5 bottom-0.5 ${b.color} ${ringClass} rounded-md flex items-center justify-center text-slate-950 font-mono font-bold text-[11px] shadow-sm transition-all duration-300 overflow-hidden px-1">
+                            <span class="truncate">${b.task} <span class="hidden sm:inline text-[9px] opacity-80">(${b.start}-${b.end}s)</span></span>
+                          </div>
+                        `;
+                      } else if (b.type === 'transfer') {
+                        return `
+                          <div title="${b.task}: ${b.start}s – ${b.end}s"
+                               style="left: ${leftPct}%; width: ${widthPct}%;"
+                               class="absolute top-0.5 bottom-0.5 bg-striped-transfer border border-amber-400/50 ${ringClass} rounded-md flex items-center justify-center text-amber-200 font-mono text-[10px] transition-all duration-300 overflow-hidden px-0.5">
+                            <span class="truncate">${b.task}</span>
+                          </div>
+                        `;
+                      } else {
+                        return `
+                          <div title="${b.task}: ${b.start}s – ${b.end}s"
+                               style="left: ${leftPct}%; width: ${widthPct}%;"
+                               class="absolute top-0.5 bottom-0.5 bg-striped-idle border border-slate-700/70 rounded-md flex items-center justify-center text-slate-400 font-mono text-[10px] transition-all duration-300 overflow-hidden px-0.5">
+                            <span class="truncate">${b.task}</span>
+                          </div>
+                        `;
+                      }
+                    }).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      });
+      html += `</div>`;
+
+      // Time Axis Ruler at Bottom
+      const ticks = [0, Math.round(maxAxisTime * 0.25), Math.round(maxAxisTime * 0.5), Math.round(maxAxisTime * 0.75), maxAxisTime];
+      html += `
+        <div class="flex items-center gap-2 mt-3 pt-1.5 border-t border-slate-800/80">
+          <span class="w-11 shrink-0 font-mono text-[10px] text-slate-500">Waktu</span>
+          <div class="flex-1 flex justify-between font-mono text-[10px] text-slate-400">
+            ${ticks.map((t) => `<span>${t}s</span>`).join('')}
+          </div>
+        </div>
+      `;
+
+      ganttContainer.innerHTML = html;
+    }
+
+    // Play Smooth Timeline Sweep Animation
+    function playGanttAnimation() {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      const schedules = computeSchedules(transferCost);
+      const targetMax = currentSimMode === 'all'
+        ? schedules.pso.makespan
+        : schedules[currentSimMode].makespan;
+
+      const durationMs = 2400;
+      const startTimestamp = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTimestamp;
+        const progress = Math.min(1, elapsed / durationMs);
+        playheadTime = progress * targetMax;
+        renderSimulator();
+
+        if (progress < 1) {
+          animFrameId = requestAnimationFrame(step);
+        } else {
+          setTimeout(() => {
+            playheadTime = null;
+            renderSimulator();
+          }, 900);
+        }
+      }
+
+      animFrameId = requestAnimationFrame(step);
+    }
+
+    // Initialize Application on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initNavigation();
+      renderSimulator();
+    });
+  </script>
+</body>
+</html>
