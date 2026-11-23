@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimasi Penjadwalan Workflow Cloud: MA vs Hybrid GA-WDO (HMOOP)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','sans-serif'],display:['Plus Jakarta Sans','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+<style>
+:root{--bg:#090D16;--card:#111827;--bd:rgba(255,255,255,.09);--mut:#9CA3AF;--am:#F59E0B;--em:#10B981;--bl:#3B82F6}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:#E5E7EB;font-family:Inter,sans-serif;overflow:hidden;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:32px 32px}
+h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.025em;line-height:1.1}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px}
+.slide{position:absolute;inset:0;padding:clamp(12px,2.4vh,28px) clamp(16px,4vw,56px);overflow:auto;opacity:0;visibility:hidden;transform:translateX(14px);transition:opacity .3s,transform .3s,visibility .3s}
+.slide.on{opacity:1;visibility:visible;transform:none}
+h2.t{font-size:clamp(1.3rem,3.4vh,2rem);font-weight:800;margin-bottom:clamp(8px,1.6vh,18px)}
+.tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--mut);text-transform:uppercase}
+.eq{font-family:'JetBrains Mono',monospace;font-size:clamp(11px,1.7vh,14px);background:#0B1220;border:1px solid var(--bd);border-radius:6px;padding:8px 10px;white-space:pre-wrap;color:#F3F4F6}
+.sim{background:#0B1220;border:1px solid var(--bd);border-radius:6px;padding:7px 10px;font-size:clamp(11px,1.6vh,13px);color:#CBD5E1}
+.sim b{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--mut);display:block;margin-bottom:2px}
+.btn{border:1px solid var(--bd);background:#111827;border-radius:6px;padding:6px 12px;font-size:13px;color:#E5E7EB;transition:background .15s}
+.btn:hover{background:#1F2937}.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #3B82F6;outline-offset:2px}
+.btn.pri{background:#3B82F6;border-color:#3B82F6;color:#fff}.btn.pri:hover{background:#2563EB}
+.seg button{padding:5px 9px;font-size:12px;border:1px solid var(--bd);margin-left:-1px;background:#0B1220;color:var(--mut)}
+.seg button.on{background:#1F2937;color:#fff}
+.dot{width:9px;height:9px;border-radius:50%;background:#374151;border:0;padding:0;transition:.2s}.dot.on{background:#3B82F6;width:22px;border-radius:5px}
+input[type=range]{width:100%;accent-color:#3B82F6}
+select{background:#0B1220;border:1px solid var(--bd);border-radius:6px;padding:6px 8px;font-size:13px;width:100%;color:#E5E7EB}
+.badge{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.04em}
+.ok{background:rgba(16,185,129,.15);color:#34D399}.no{background:rgba(239,68,68,.15);color:#F87171}
+.vl{font:10px 'JetBrains Mono',monospace;fill:#9CA3AF}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--bd);padding:7px 8px;text-align:left;font-size:clamp(11px,1.7vh,13px)}th{color:var(--mut);font-weight:500}
+</style>
+</head>
+<body>
+<header class="fixed top-0 inset-x-0 h-[52px] flex items-center justify-between px-3 sm:px-5 z-30" style="background:#090D16;border-bottom:1px solid var(--bd)">
+  <div class="mono text-[11px] text-gray-400 hidden sm:block">WF-SCHED / TELEMETRY</div>
+  <nav id="dots" class="flex items-center gap-2" aria-label="Indikator slide"></nav>
+  <div class="flex items-center gap-1.5">
+    <span id="ctr" class="mono text-xs text-gray-400 mr-1">01/08</span>
+    <button class="btn" id="bToc" aria-label="Daftar isi">Isi</button>
+    <button class="btn" id="bFs" aria-label="Layar penuh">Penuh</button>
+    <button class="btn" id="bPrev" aria-label="Sebelumnya">&larr;</button>
+    <button class="btn pri" id="bNext" aria-label="Berikutnya">&rarr;</button>
+  </div>
+</header>
+<aside id="toc" class="fixed top-[52px] right-0 bottom-0 w-72 z-20 p-4 overflow-auto" style="background:#0D1320;border-left:1px solid var(--bd);transform:translateX(100%);transition:transform .25s">
+  <div class="tag mb-3">Daftar isi</div><div id="tocl" class="flex flex-col gap-1"></div>
+</aside>
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-md text-sm opacity-0 pointer-events-none transition-opacity" style="background:#1F2937;border:1px solid var(--bd)"></div>
+
+<main style="position:fixed;top:52px;bottom:0;left:0;right:0">
+
+<!-- 1 -->
+<section class="slide on" data-t="Judul"><div class="h-full flex flex-col justify-center max-w-6xl mx-auto">
+  <div class="tag mb-3">Cloud Computing / Workflow Scheduling</div>
+  <h1 class="font-extrabold mb-4" style="font-size:clamp(1.6rem,5.2vh,3.2rem)">Optimasi Penjadwalan Workflow di Cloud Computing: <span style="color:var(--em)">Memetic Algorithm (MA)</span> vs. <span style="color:var(--bl)">Hybrid GA-WDO (HMOOP)</span></h1>
+  <p class="text-gray-400 max-w-3xl mb-6" style="font-size:clamp(13px,2.2vh,17px)">Memilih strategi terbaik untuk menekan Makespan, Biaya Sewa VM, dan Risiko Kegagalan Server.</p>
+  <div class="grid sm:grid-cols-3 gap-3">
+    <div class="card p-4"><div class="mono text-xs text-gray-500 mb-2">01</div><h3 class="font-bold text-lg mb-1">Realita Server Cloud</h3><p class="text-sm text-gray-400">Performa CPU naik-turun, VM butuh waktu booting, dan data antar-server punya ongkos kirim.</p></div>
+    <div class="card p-4"><div class="mono text-xs text-gray-500 mb-2">02</div><h3 class="font-bold text-lg mb-1">Adu Dua Algoritma Hybrid</h3><p class="text-sm text-gray-400">MA yang fokus waktu dan biaya, melawan Hybrid GA-WDO yang ikut menghitung keandalan.</p></div>
+    <div class="card p-4"><div class="mono text-xs text-gray-500 mb-2">03</div><h3 class="font-bold text-lg mb-1">Simulasi Interaktif</h3><p class="text-sm text-gray-400">Ubah parameter, lalu lihat jadwal dihitung ulang secara nyata, bukan gambar statis.</p></div>
+  </div>
+</div></section>
+
+<!-- 2 -->
+<section class="slide" data-t="Latar Belakang & Realita Cloud"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Workflow itu rantai tugas, dan cloud tidak pernah ideal</h2>
+  <div class="grid lg:grid-cols-2 gap-4 flex-1 min-h-0">
+    <div class="flex flex-col gap-2.5">
+      <p class="text-sm text-gray-400">Sebuah workflow ilmiah dimodelkan sebagai DAG: tugas B baru boleh jalan setelah tugas A selesai dan datanya sampai. Di IaaS seperti Amazon EC2, ada tiga kendala yang bikin urusan ini rumit.</p>
+      <div class="card p-3.5"><div class="mono text-xs text-gray-500">01</div><h3 class="font-bold">Dilema cepat-mahal vs murah-lambat</h3><p class="text-sm text-gray-400 mt-1">VM kencang mempercepat selesai, tapi tarifnya berlipat. Menekan biaya berarti menunggu lebih lama.</p></div>
+      <div class="card p-3.5"><div class="mono text-xs text-gray-500">02</div><h3 class="font-bold">Performa CPU turun hingga 24% + booting</h3><p class="text-sm text-gray-400 mt-1">Kecepatan nyata VM bisa melorot dari spesifikasi, dan VM baru butuh waktu booting sebelum bisa dipakai.</p></div>
+      <div class="card p-3.5"><div class="mono text-xs text-gray-500">03</div><h3 class="font-bold">Ongkos kirim data antar-server</h3><p class="text-sm text-gray-400 mt-1">Hasil tugas harus dikirim ke VM lain. Bandwidth terkecil di antara dua VM jadi bottleneck.</p></div>
+    </div>
+    <div class="card p-3 flex flex-col min-h-0">
+      <div class="tag mb-1">DAG tugas &amp; transfer data antar-VM</div>
+      <svg viewBox="0 0 440 300" class="w-full flex-1 min-h-0" role="img" aria-label="Diagram DAG">
+        <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0L8,4L0,8z" fill="#9CA3AF"/></marker><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0L8,4L0,8z" fill="#F59E0B"/></marker></defs>
+        <rect x="8" y="26" width="190" height="266" rx="8" fill="none" stroke="#3B82F6" stroke-dasharray="5 4" opacity=".6"/>
+        <rect x="242" y="26" width="190" height="266" rx="8" fill="none" stroke="#10B981" stroke-dasharray="5 4" opacity=".6"/>
+        <text x="14" y="18" class="vl">VM-A</text><text x="248" y="18" class="vl">VM-B</text>
+        <g stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ar)"><line x1="103" y1="90" x2="103" y2="127"/><line x1="337" y1="130" x2="337" y2="177"/></g>
+        <g stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ar2)"><line x1="121" y1="77" x2="317" y2="104"/><line x1="121" y1="157" x2="318" y2="194"/><line x1="319" y1="207" x2="121" y2="243"/></g>
+        <g class="vl"><text x="110" y="113">0 s</text><text x="344" y="158">0 s</text><text x="200" y="82" fill="#F59E0B" style="fill:#F59E0B">TC = 20 s</text><text x="205" y="187" style="fill:#F59E0B">TC = 12 s</text><text x="208" y="236" style="fill:#F59E0B">TC = 18 s</text></g>
+        <g fill="#0B1220" stroke="#6B7280" stroke-width="1.5"><circle cx="103" cy="70" r="20"/><circle cx="103" cy="150" r="20"/><circle cx="103" cy="250" r="20"/><circle cx="337" cy="110" r="20"/><circle cx="337" cy="200" r="20"/></g>
+        <g text-anchor="middle" style="font:12px 'JetBrains Mono',monospace;fill:#E5E7EB"><text x="103" y="74">T1</text><text x="103" y="154">T2</text><text x="103" y="254">T5</text><text x="337" y="114">T3</text><text x="337" y="204">T4</text></g>
+      </svg>
+      <p class="text-xs text-gray-500">Garis abu-abu: tugas di VM yang sama (transfer 0). Garis amber putus-putus: data harus menyeberang VM.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 3 -->
+<section class="slide" data-t="Dua Kandidat Algoritma Hybrid"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Dua kandidat algoritma hybrid</h2>
+  <div class="grid md:grid-cols-2 gap-4 flex-1 min-h-0">
+    <div class="card p-4 flex flex-col" style="border-top:3px solid var(--em)">
+      <div class="tag" style="color:var(--em)">Bi-Objective</div><h3 class="font-bold text-xl mb-1">Memetic Algorithm (MA)</h3>
+      <p class="text-sm text-gray-400 mb-3">Fokus pada waktu dan biaya. GA klasik yang diberi "bekal" dan diasah dengan pencarian lokal.</p>
+      <ol class="flex flex-col gap-2 text-sm">
+        <li class="sim"><b>LANGKAH 1 / START CERDAS</b>Populasi awal diisi 4 jadwal heuristik: Topo, HEFT, SJF, dan MCO, jadi tidak mulai dari nol.</li>
+        <li class="sim"><b>LANGKAH 2 / KAWIN SILANG</b>Dua jadwal digabung dengan PMX (Partially Mapped Crossover) agar urutan tugas tetap valid.</li>
+        <li class="sim"><b>LANGKAH 3 / PERBAIKAN LOKAL</b>Swap Mutation menukar posisi tugas, lalu hasilnya dipertahankan kalau lebih baik.</li>
+      </ol>
+    </div>
+    <div class="card p-4 flex flex-col" style="border-top:3px solid var(--bl)">
+      <div class="tag" style="color:var(--bl)">Tri-Objective</div><h3 class="font-bold text-xl mb-1">Hybrid GA-WDO (HMOOP)</h3>
+      <p class="text-sm text-gray-400 mb-3">Fokus pada waktu, biaya, dan keandalan. GA mencari dulu, WDO menyempurnakan.</p>
+      <ol class="flex flex-col gap-2 text-sm">
+        <li class="sim"><b>LANGKAH 1 / GA MENCARI</b>Genetic Algorithm menghasilkan kumpulan solusi awal yang cukup bagus.</li>
+        <li class="sim"><b>LANGKAH 2 / MOLEKUL UDARA</b>Solusi terbaik GA disuntikkan sebagai "molekul udara" ke Wind Driven Optimization (WDO), lalu partikel bergerak mengikuti tekanan dan angin.</li>
+        <li class="sim"><b>LANGKAH 3 / PARETO ARCHIVE</b>Non-dominated Sorting menyaring semua kandidat menjadi kumpulan opsi terbaik yang saling tak terkalahkan.</li>
+      </ol>
+    </div>
+  </div>
+</div></section>
+
+<!-- 4 -->
+<section class="slide" data-t="5 Alasan Keunggulan & Perbandingan"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Lima alasan Hybrid GA-WDO unggul, dan kapan MA tetap juara</h2>
+  <div class="grid lg:grid-cols-2 gap-4 flex-1 min-h-0">
+    <ol class="flex flex-col gap-2 text-sm">
+      <li class="card p-3"><span class="mono text-gray-500 mr-2">01</span><b>Menghitung risiko error server.</b> Failure rate ikut jadi tujuan, bukan sekadar bonus.</li>
+      <li class="card p-3"><span class="mono text-gray-500 mr-2">02</span><b>Tahan penurunan CPU 24%.</b> Jadwalnya tetap waras saat performa server melorot.</li>
+      <li class="card p-3"><span class="mono text-gray-500 mr-2">03</span><b>Opsi lebih merata.</b> Nilai Spacing 13-47% lebih rendah, artinya sebaran solusi lebih seragam.</li>
+      <li class="card p-3"><span class="mono text-gray-500 mr-2">04</span><b>Cakupan lebih luas.</b> Hypervolume 35-59% lebih besar, jadi pilihan trade-off lebih beragam.</li>
+      <li class="card p-3"><span class="mono text-gray-500 mr-2">05</span><b>Catatan jujur:</b> pada kondisi stabil, MA tetap kuat dengan 90-100% deadline met.</li>
+    </ol>
+    <div class="card p-3 self-start"><table>
+      <tr><th>Aspek</th><th style="color:var(--em)">MA</th><th style="color:var(--bl)">HMOOP</th></tr>
+      <tr><td>Objektif</td><td class="mono">Waktu, Biaya</td><td class="mono">Waktu, Biaya, Keandalan</td></tr>
+      <tr><td>Hypervolume</td><td class="mono">Basis</td><td class="mono">+35% s.d. +59%</td></tr>
+      <tr><td>Spacing</td><td class="mono">Basis</td><td class="mono">-13% s.d. -47%</td></tr>
+      <tr><td>Deadline met</td><td class="mono">90-100% (stabil)</td><td class="mono">90-100%, tahan fluktuasi</td></tr>
+    </table></div>
+  </div>
+</div></section>
+
+<!-- 5 -->
+<section class="slide" data-t="Logika & Rumus Perhitungan"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Logika &amp; rumus perhitungan</h2>
+  <div class="grid md:grid-cols-2 gap-3 flex-1 min-h-0 content-start">
+    <div class="card p-3 flex flex-col gap-2"><div class="tag">Lama kerja tugas</div><div class="eq">ET = Task_Length / (Kecepatan_VM * (1 - PV))</div><div class="sim"><b>TERJEMAHAN SEDERHANA</b>Lama kerja = panjang tugas dibagi kecepatan VM yang sudah dipotong penurunan performa (PV).</div></div>
+    <div class="card p-3 flex flex-col gap-2"><div class="tag">Waktu kirim data</div><div class="eq">TC = Ukuran_Data / min(BW_asal, BW_tujuan)
+TC = 0 jika di VM yang sama</div><div class="sim"><b>TERJEMAHAN SEDERHANA</b>Kecepatan kirim ditentukan jalur yang paling sempit. Satu VM berarti tidak ada ongkos kirim.</div></div>
+    <div class="card p-3 flex flex-col gap-2"><div class="tag">3 nilai rapor</div><div class="eq">F1 = Makespan
+F2 = Total Lease Cost
+F3 = Failure Rate (FT * lambda)</div><div class="sim"><b>TERJEMAHAN SEDERHANA</b>Seberapa cepat selesai, seberapa mahal sewanya, dan seberapa besar peluang server gagal selama tugas berjalan. Makin kecil makin bagus.</div></div>
+    <div class="card p-3 flex flex-col gap-2"><div class="tag">Gerak partikel WDO</div><div class="eq">v_next = (1 - alpha)*v_prev - g*x_cur
+       + |1 - P_opt/P_cur|*(x_opt - x_cur)
+       + (c*v_other)/P_cur</div><div class="sim"><b>TERJEMAHAN SEDERHANA</b>Partikel melambat karena gesekan, ditarik gravitasi, lalu didorong menuju posisi terbaik. Partikel bertekanan rendah ditarik lebih kuat, ditambah pengaruh partikel lain.</div></div>
+  </div>
+</div></section>
+
+<!-- 6 -->
+<section class="slide" data-t="Live Interactive Simulator"><div class="h-full flex flex-col max-w-[1400px] mx-auto">
+  <h2 class="t" style="margin-bottom:8px">Live simulator penjadwalan</h2>
+  <div class="grid lg:grid-cols-[290px_1fr] gap-3 flex-1 min-h-0">
+    <div class="card p-3 flex flex-col gap-2.5 overflow-auto text-sm">
+      <label class="block"><span class="tag">Pola workflow</span><select id="wf"><option value="montage">Montage (8 Tasks - Banyak Transfer Data)</option><option value="cyber">CyberShake (8 Tasks - Cabang Asimetris)</option><option value="epi">Epigenomics (9 Tasks - Jalur Paralel)</option></select></label>
+      <label class="block"><span class="tag flex justify-between">Penurunan Performa CPU (PV)<b id="pvv" class="mono text-white">12%</b></span><input id="pv" type="range" min="0" max="24" value="12"></label>
+      <label class="block"><span class="tag flex justify-between">Target Deadline &amp; Budget<b id="tgv" class="mono text-white">Sedang</b></span><input id="tg" type="range" min="0" max="100" value="45"><span class="flex justify-between text-[10px] text-gray-500"><span>Longgar</span><span>Sangat Ketat</span></span><span id="lim" class="mono text-[11px] text-gray-400"></span></label>
+      <div><span class="tag">Algoritma</span><div class="seg flex flex-wrap mt-1" id="alg"><button data-a="nsga">NSGA-II</button><button data-a="ma">MA</button><button data-a="hm">HMOOP</button><button data-a="all" class="on">Bandingkan Semua</button></div></div>
+      <div class="flex gap-2"><button class="btn pri flex-1" id="bRun">Jalankan Simulasi</button><button class="btn flex-1" id="bAnim">Animasi Garis Waktu</button></div>
+      <div class="mono text-[10.5px] text-gray-400 leading-relaxed" id="vmt"></div>
+    </div>
+    <div class="flex flex-col min-h-0 gap-2">
+      <div class="flex items-center justify-between"><div class="seg flex"><button id="t1" class="on">Gantt Chart Multi-VM</button><button id="t2">Sebaran Solusi (Pareto)</button></div><span id="stat" class="mono text-[11px] text-gray-500"></span></div>
+      <div id="kpi" class="grid sm:grid-cols-3 gap-2"></div>
+      <div class="card p-2 flex-1 min-h-[180px]"><div id="v1" class="h-full"></div><div id="v2" class="h-full hidden"></div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 7 -->
+<section class="slide" data-t="Hasil Uji Skala Besar"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Hasil uji skala besar pada 4 aplikasi ilmiah</h2>
+  <div class="grid lg:grid-cols-2 gap-3 flex-1 min-h-0">
+    <div class="card p-3 flex flex-col min-h-0"><div class="flex items-center justify-between mb-1"><div class="tag" id="c1t">Hypervolume (lebih tinggi lebih baik)</div><div class="seg flex" id="mt"><button data-m="hv" class="on">Hypervolume</button><button data-m="sp">Spacing</button></div></div><div id="ch1" class="flex-1 min-h-0"></div></div>
+    <div class="card p-3 flex flex-col min-h-0"><div class="tag mb-1">Deadline Met (%)</div><div id="ch2" class="flex-1 min-h-0"></div></div>
+  </div>
+  <p class="text-[11px] text-gray-500 mt-2">Catatan: nilai pada grafik bersifat ilustratif dan dibuat konsisten dengan rentang yang dilaporkan (HV +35-59%, Spacing -13-47%, deadline met 90-100%). Ganti dengan angka tabel paper bila diperlukan.</p>
+</div></section>
+
+<!-- 8 -->
+<section class="slide" data-t="Kesimpulan & Panduan Praktis"><div class="max-w-6xl mx-auto h-full flex flex-col">
+  <h2 class="t">Kesimpulan &amp; panduan praktis</h2>
+  <div class="grid md:grid-cols-3 gap-3 mb-3">
+    <div class="card p-3.5"><div class="mono text-xs text-gray-500 mb-1">01</div><p class="text-sm">Tidak ada algoritma yang selalu menang. Pilihannya tergantung objektif dan seberapa stabil cloud-nya.</p></div>
+    <div class="card p-3.5"><div class="mono text-xs text-gray-500 mb-1">02</div><p class="text-sm">Memasukkan risiko kegagalan dan penurunan CPU ke dalam tujuan membuat jadwal lebih tahan banting.</p></div>
+    <div class="card p-3.5"><div class="mono text-xs text-gray-500 mb-1">03</div><p class="text-sm">Pareto Archive memberi banyak opsi. Keputusan akhir tetap di tangan operator sesuai SLA.</p></div>
+  </div>
+  <div class="grid md:grid-cols-2 gap-3 flex-1 min-h-0 content-start">
+    <div class="card p-4" style="border-top:3px solid var(--em)"><h3 class="font-bold text-lg mb-2" style="color:var(--em)">Pakai Memetic Algorithm (MA) bila...</h3><ul class="text-sm text-gray-300 flex flex-col gap-1.5 list-disc pl-4"><li>Performa server relatif stabil.</li><li>Hanya waktu dan biaya yang jadi pertimbangan.</li><li>Butuh jawaban cepat dengan deadline met 90-100%.</li></ul></div>
+    <div class="card p-4" style="border-top:3px solid var(--bl)"><h3 class="font-bold text-lg mb-2" style="color:var(--bl)">Pakai Hybrid GA-WDO (HMOOP) bila...</h3><ul class="text-sm text-gray-300 flex flex-col gap-1.5 list-disc pl-4"><li>Performa server fluktuatif (PV tinggi).</li><li>Keandalan dan risiko gagal ikut menentukan.</li><li>Perlu banyak pilihan trade-off yang merata.</li></ul></div>
+  </div>
+</div></section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+/* ===== Navigasi ===== */
+const slides=$$('.slide'),N=slides.length;let cur=0,ran=false;
+slides.forEach((s,i)=>{const d=document.createElement('button');d.className='dot';d.setAttribute('aria-label','Slide '+(i+1));d.onclick=()=>go(i);$('#dots').append(d);
+ const b=document.createElement('button');b.className='btn text-left';b.innerHTML=`<span class="mono text-gray-500 mr-2">${String(i+1).padStart(2,'0')}</span>${s.dataset.t}`;b.onclick=()=>{go(i);toc(false)};$('#tocl').append(b)});
+function go(i){cur=Math.max(0,Math.min(N-1,i));slides.forEach((s,k)=>s.classList.toggle('on',k===cur));$$('.dot').forEach((d,k)=>d.classList.toggle('on',k===cur));$('#ctr').textContent=String(cur+1).padStart(2,'0')+'/0'+N;if(cur===5&&!ran){ran=true;run()}if(cur===6)charts()}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.opacity=0,2400)}
+let tocOpen=false;function toc(f){tocOpen=f===undefined?!tocOpen:f;$('#toc').style.transform=tocOpen?'none':'translateX(100%)'}
+function fs(){const e=document.documentElement;if(document.fullscreenElement){document.exitFullscreen();return}if(!e.requestFullscreen){toast('Browser ini tidak mendukung mode layar penuh.');return}e.requestFullscreen().catch(()=>toast('Mode layar penuh dibatasi oleh browser atau halaman ini.'))}
+$('#bPrev').onclick=()=>go(cur-1);$('#bNext').onclick=()=>go(cur+1);$('#bToc').onclick=()=>toc();$('#bFs').onclick=fs;
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;if(e.target.tagName==='BUTTON'&&e.key===' ')return;
+ if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1)}else if(e.key==='ArrowLeft')go(cur-1);else if(/^[1-8]$/.test(e.key))go(+e.key-1);else if(e.key==='f'||e.key==='F')fs();else if(e.key==='Escape')toc(false)});
+go(0);
+
+/* ===== Data simulator ===== */
+const CL={nsga:'#F59E0B',ma:'#10B981',hm:'#3B82F6'},NM={nsga:'NSGA-II',ma:'Memetic (MA)',hm:'Hybrid GA-WDO (HMOOP)'};
+const VMS=[{n:'VM1',t:'db.m1.small',mips:1000,bw:10,rate:.044,lam:.0008},{n:'VM2',t:'db.m1.large',mips:2000,bw:25,rate:.175,lam:.0005},{n:'VM3',t:'db.m1.xlarge',mips:3500,bw:50,rate:.35,lam:.0003},{n:'VM4',t:'db.m2.4xlarge',mips:5000,bw:100,rate:.84,lam:.0001}];
+const BOOT=30; // detik booting VM baru
+// len = ribuan MI, edge = [dari,ke,ukuran data MB]
+const WF={
+ montage:{len:[120,140,130,90,100,180,220,260],e:[[0,3,300],[1,3,300],[1,4,300],[2,4,300],[3,5,250],[4,5,250],[5,6,400],[0,6,200],[6,7,500]]},
+ cyber:{len:[80,260,60,140,200,90,180,120],e:[[0,1,120],[0,2,60],[0,3,90],[1,4,150],[1,5,70],[2,6,50],[3,6,100],[4,7,80],[5,7,60],[6,7,110]]},
+ epi:{len:[70,220,180,260,150,120,200,160,90],e:[[0,1,200],[0,2,200],[0,3,200],[1,4,150],[2,5,150],[3,6,150],[4,7,120],[5,7,120],[6,7,120],[7,8,160]]}};
+Object.values(WF).forEach(w=>{const n=w.len.length;w.P=Array.from({length:n},()=>[]);w.S=Array.from({length:n},()=>[]);w.e.forEach(([a,b,s])=>{w.P[b].push([a,s]);w.S[a].push([b,s])})});
+let W,PV,D,B,seed0=1;
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+
+/* ===== Engine penjadwalan ===== */
+function topoFix(o){const done=new Set(),rem=o.slice(),out=[];while(rem.length){const k=rem.findIndex(t=>W.P[t].every(p=>done.has(p[0])));const t=rem.splice(k,1)[0];done.add(t);out.push(t)}return out}
+function ev(sol){
+ const n=W.len.length,o=topoFix(sol.o),fin=Array(n),vr=[0,0,0,0],used=[0,0,0,0],seg=[[],[],[],[]];let risk=0;
+ for(const t of o){const v=sol.a[t],V=VMS[v];
+  if(!used[v]){used[v]=1;vr[v]=BOOT;seg[v].push({k:'boot',s:0,e:BOOT})}
+  let arr=0,mt=0;for(const[p,sz]of W.P[t]){const u=sol.a[p],tc=u===v?0:sz/Math.min(VMS[u].bw,V.bw);mt=Math.max(mt,tc);arr=Math.max(arr,fin[p]+tc)}
+  const st=Math.max(vr[v],arr),et=W.len[t]*1000/(V.mips*(1-PV));
+  if(mt>0&&arr>vr[v])seg[v].push({k:'tr',s:Math.max(vr[v],arr-mt),e:arr,t});
+  seg[v].push({k:'ex',s:st,e:st+et,t});fin[t]=st+et;vr[v]=fin[t];risk+=et*V.lam}
+ let C=0;for(let v=0;v<4;v++)if(used[v])C+=VMS[v].rate/3600*vr[v];
+ return{T:Math.max(...fin),C,R:risk,seg,o}}
+const mk=s=>{const e=ev(s);return{a:s.a,o:e.o,T:e.T,C:e.C,R:e.R,seg:e.seg,v:Math.max(0,e.T/D-1)+Math.max(0,e.C/B-1)}};
+const OBJ=['T','C','R'];
+function dom(a,b,k){if(a.v!==b.v)return a.v<b.v;let s=false;for(const x of OBJ.slice(0,k)){if(a[x]>b[x])return false;if(a[x]<b[x])s=true}return s}
+function rank(P,k){const n=P.length,S=P.map(()=>[]),c=Array(n).fill(0),F=[[]];
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(i===j)continue;if(dom(P[i],P[j],k))S[i].push(j);else if(dom(P[j],P[i],k))c[i]++}
+ P.forEach((p,i)=>{p.cd=0;if(!c[i]){p.rk=0;F[0].push(i)}});
+ let f=0;while(F[f].length){const nx=[];for(const i of F[f])for(const j of S[i])if(--c[j]===0){P[j].rk=f+1;nx.push(j)}F.push(nx);f++}
+ F.pop();
+ for(const fr of F)for(const m of OBJ.slice(0,k)){const s=fr.slice().sort((x,y)=>P[x][m]-P[y][m]),L=s.length-1;P[s[0]].cd=P[s[L]].cd=1e9;const rg=P[s[L]][m]-P[s[0]][m]||1;for(let q=1;q<L;q++)P[s[q]].cd+=(P[s[q+1]][m]-P[s[q-1]][m])/rg}
+ return F.map(fr=>fr.map(i=>P[i]))}
+const cmp=(a,b)=>a.rk-b.rk||b.cd-a.cd;
+const tour=(P,r)=>{const a=P[r()*P.length|0],b=P[r()*P.length|0];return cmp(a,b)<=0?a:b};
+function pmx(p1,p2,r){const n=p1.length,a=r()*n|0,b=a+(r()*(n-a)|0),c=Array(n).fill(-1);
+ for(let i=a;i<=b;i++)c[i]=p1[i];
+ for(let i=a;i<=b;i++){const g=p2[i];if(c.includes(g))continue;let j=i;for(;;){j=p2.indexOf(p1[j]);if(j<a||j>b){c[j]=g;break}}}
+ return c.map((g,i)=>g<0?p2[i]:g)}
+const randSol=r=>{const n=W.len.length;return{a:Array.from({length:n},()=>r()*4|0),o:Array.from({length:n},(_,i)=>i).sort(()=>r()-.5)}};
+function cross(p,q,r){return{a:p.a.map((g,i)=>r()<.5?g:q.a[i]),o:pmx(p.o,q.o,r)}}
+function mut(s,r,pm=.12){const n=s.a.length;s.a=s.a.map(g=>r()<pm?r()*4|0:g);if(r()<.3){const i=r()*n|0,j=r()*n|0;[s.o[i],s.o[j]]=[s.o[j],s.o[i]]}return s}
+function swapMut(x,r){const n=x.a.length,o=x.o.slice(),a=x.a.slice(),i=r()*n|0,j=r()*n|0;[o[i],o[j]]=[o[j],o[i]];a[r()*n|0]=r()*4|0;return{a,o}}
+function greedy(order,key){const n=W.len.length,a=Array(n).fill(3);for(const t of order){let bv=0,bk=1e18;for(let v=0;v<4;v++){a[t]=v;const k=key(ev({a,o:order}));if(k<bk){bk=k;bv=v}}a[t]=bv}return{a,o:order}}
+function heurSeeds(){const n=W.len.length,ids=[...Array(n).keys()],rk=[];
+ const R=t=>rk[t]??(rk[t]=W.len[t]+Math.max(0,...W.S[t].map(([s,z])=>z/30+R(s))));
+ const heft=ids.slice().sort((x,y)=>R(y)-R(x)),sjf=topoFix(ids.slice().sort((x,y)=>W.len[x]-W.len[y]));
+ return[{a:ids.map(t=>t%4),o:ids},greedy(heft,e=>e.T),greedy(sjf,e=>e.T*e.C),greedy(ids,e=>e.C)]}
+function ga({k,np,ng,seeds,ls,r}){let P=seeds.map(mk);while(P.length<np)P.push(mk(randSol(r)));
+ for(let g=0;g<ng;g++){rank(P,k);const Q=[];while(Q.length<np){let ch=mk(mut(cross(tour(P,r),tour(P,r),r),r));
+  if(ls)for(let q=0;q<3;q++){const m=mk(swapMut(ch,r));if(dom(m,ch,k))ch=m}Q.push(ch)}
+  const U=P.concat(Q);rank(U,k);U.sort(cmp);P=U.slice(0,np)}
+ rank(P,k);return P}
+function wdo(P0,r){const n=W.len.length,NP=24,AL=.4,G=.2,CC=.4,cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+ const dec=x=>({a:x.slice(0,n).map(v=>Math.min(3,v*4|0)),o:[...Array(n).keys()].sort((i,j)=>x[n+i]-x[n+j])});
+ const enc=e=>[...e.a.map(g=>(g+.5)/4),...e.a.map((_,i)=>(e.o.indexOf(i)+.5)/n)];
+ let sw=P0.slice(0,8).map(e=>({x:enc(e),v:Array(2*n).fill(0)}));
+ while(sw.length<NP)sw.push({x:Array.from({length:2*n},()=>r()*.999),v:Array(2*n).fill(0)});
+ const arch=P0.slice();
+ const evalSw=()=>{sw.forEach(p=>p.i=mk(dec(p.x)));arch.push(...sw.map(p=>p.i));rank(sw.map(p=>p.i),3);sw.sort((a,b)=>cmp(a.i,b.i))};
+ for(let it=0;it<25;it++){evalSw();const best=sw[0],vs=sw.map(p=>p.v.slice());
+  sw.forEach((p,idx)=>{const Pc=NP-idx,Po=NP,ot=vs[r()*NP|0];
+   for(let d=0;d<2*n;d++){const vn=cl((1-AL)*p.v[d]-G*p.x[d]+Math.abs(1-Po/Pc)*(best.x[d]-p.x[d])+CC*ot[d]/Pc,-.4,.4);p.v[d]=vn;p.x[d]=cl(p.x[d]+vn,0,.999)}})}
+ evalSw();const pool=arch;return{front:rank(pool,3)[0],pop:sw.map(p=>p.i)}}
+function pick(front,k){const fe=front.filter(p=>!p.v),pool=fe.length?fe:[front.reduce((a,b)=>b.v<a.v?b:a)];
+ const mm=m=>[Math.min(...pool.map(p=>p[m])),Math.max(...pool.map(p=>p[m]))||1],ks=OBJ.slice(0,k).map(m=>[m,...mm(m)]);
+ const sc=p=>ks.reduce((s,[m,lo,hi])=>s+(p[m]-lo)/((hi-lo)||1),0);return pool.reduce((a,b)=>sc(b)<sc(a)?b:a)}
+function solve(key,idx){const r=rng(seed0*977+idx*131+Math.round(PV*100)+Math.round(D));let front,pts,k=2;
+ if(key==='nsga'){const P=ga({k,np:30,ng:25,seeds:[],ls:false,r});front=rank(P,k)[0];pts=P}
+ else if(key==='ma'){const P=ga({k,np:30,ng:25,seeds:heurSeeds(),ls:true,r});front=rank(P,k)[0];pts=P}
+ else{k=3;const P=ga({k,np:30,ng:20,seeds:[],ls:false,r}),o=wdo(P,r);front=o.front;pts=o.pop}
+ const best=pick(front,k);return{key,best,pts:[...pts,...front],front}}
+
+/* ===== UI simulator ===== */
+let res=[],sel='hm',algo='all',tab=1;
+const f2=(x,d=1)=>x.toFixed(d);
+function run(){W=WF[$('#wf').value];PV=+$('#pv').value/100;const n=W.len.length,ids=[...Array(n).keys()],id=ids.slice();
+ const sg=[0,1,2,3].map(v=>ev({a:Array(n).fill(v),o:id})),T1=sg[0].T,tmin=Math.min(...sg.map(s=>s.T)),cs=sg.map(s=>s.C),cmin=Math.min(...cs),cmax=Math.max(...cs),t=+$('#tg').value/100;
+ D=Math.pow(T1,1-t)*Math.pow(.9*tmin,t);B=Math.pow(1.3*cmax,1-t)*Math.pow(1.1*cmin,t);
+ $('#pvv').textContent=$('#pv').value+'%';$('#tgv').textContent=t<.25?'Longgar':t<.55?'Sedang':t<.8?'Ketat':'Sangat Ketat';
+ $('#lim').textContent=`Deadline ${f2(D,0)} s | Budget $${f2(B,4)}`;
+ const keys=algo==='all'?['nsga','ma','hm']:[algo];res=keys.map((k,i)=>solve(k,i));if(!keys.includes(sel))sel=keys[keys.length-1];
+ $('#stat').textContent=`${n} tugas | ${algo==='all'?3:1} algoritma`;render()}
+function render(){
+ $('#kpi').innerHTML=res.map(r=>{const b=r.best,ok=!b.v;return`<button data-k="${r.key}" class="card p-2.5 text-left" style="${r.key===sel?'outline:1.5px solid '+CL[r.key]:''}"><div class="flex items-center justify-between mb-1"><span class="text-xs font-semibold" style="color:${CL[r.key]}">${NM[r.key]}</span><span class="badge ${ok?'ok':'no'}">${ok?'LOLOS SLA (Feasible)':'LEWAT BATAS (Infeasible)'}</span></div>
+ <div class="grid grid-cols-3 gap-1 mono"><div><div class="text-[10px] text-gray-500">Makespan</div><div class="text-sm">${f2(b.T)} s</div></div><div><div class="text-[10px] text-gray-500">Biaya</div><div class="text-sm">$${f2(b.C,4)}</div></div><div><div class="text-[10px] text-gray-500">Risiko</div><div class="text-sm">${f2(b.R,3)}</div></div></div></button>`}).join('');
+ $$('#kpi button').forEach(b=>b.onclick=()=>{sel=b.dataset.k;render()});
+ $('#v1').innerHTML=gantt();$('#v2').innerHTML=pareto()}
+function gantt(){const r=res.find(x=>x.key===sel),b=r.best,W0=900,L=76,H=22+4*44+28,xm=Math.max(b.T,D)*1.06,sx=t=>L+t/xm*(W0-L-16),col=CL[sel];let s=`<svg viewBox="0 0 ${W0} ${H}" class="w-full h-full" role="img" aria-label="Gantt chart"><defs><pattern id="ht" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#334155"/><line x1="0" y1="0" x2="0" y2="6" stroke="#94A3B8" stroke-width="2"/></pattern><clipPath id="cp"><rect id="cpr" x="0" y="0" width="${W0}" height="${H}"/></clipPath></defs>`;
+ for(let i=0;i<=5;i++){const t=xm*i/5;s+=`<line x1="${sx(t)}" y1="14" x2="${sx(t)}" y2="${H-24}" stroke="rgba(255,255,255,.06)"/><text x="${sx(t)}" y="${H-10}" text-anchor="middle" class="vl">${f2(t,0)}s</text>`}
+ s+='<g clip-path="url(#cp)">';
+ for(let v=0;v<4;v++){const y=22+v*44,sg=b.seg[v];s+=`<text x="6" y="${y+22}" class="vl" style="fill:#E5E7EB">${VMS[v].n}</text><line x1="${L}" x2="${W0-16}" y1="${y+34}" y2="${y+34}" stroke="rgba(255,255,255,.05)"/>`;
+  if(!sg.length){s+=`<text x="${L+6}" y="${y+22}" class="vl">tidak dipakai</text>`;continue}
+  sg.sort((p,q)=>p.s-q.s);let pe=0;
+  for(const g of sg){if(g.s-pe>.5)s+=`<rect x="${sx(pe)}" y="${y+4}" width="${sx(g.s)-sx(pe)}" height="26" fill="none" stroke="rgba(255,255,255,.2)" stroke-dasharray="3 3"/>`;
+   const fill=g.k==='boot'?'#475569':g.k==='tr'?'url(#ht)':col,w=Math.max(1,sx(g.e)-sx(g.s));
+   s+=`<rect x="${sx(g.s)}" y="${y+4}" width="${w}" height="26" rx="2" fill="${fill}"><title>${g.k==='boot'?'Booting':g.k==='tr'?'Transfer data ke T'+(g.t+1):'Eksekusi T'+(g.t+1)}: ${f2(g.s)}-${f2(g.e)} s</title></rect>`;
+   if(g.k==='ex'&&w>18)s+=`<text x="${sx(g.s)+w/2}" y="${y+21}" text-anchor="middle" style="font:700 10px 'JetBrains Mono',monospace;fill:#0B1220">T${g.t+1}</text>`;pe=g.e}}
+ s+=`</g><line x1="${sx(D)}" y1="12" x2="${sx(D)}" y2="${H-24}" stroke="#F87171" stroke-dasharray="5 4"/><text x="${sx(D)-4}" y="10" text-anchor="end" class="vl" style="fill:#F87171">deadline</text><line id="ph" x1="-5" x2="-5" y1="14" y2="${H-24}" stroke="#fff" stroke-width="1.5"/></svg>
+ <div class="flex flex-wrap gap-3 mt-1 text-[11px] text-gray-400"><span><i class="inline-block w-3 h-3 align-middle mr-1" style="background:#475569"></i>Booting</span><span><i class="inline-block w-3 h-3 align-middle mr-1" style="background:${col}"></i>Eksekusi tugas</span><span><i class="inline-block w-3 h-3 align-middle mr-1" style="background:repeating-linear-gradient(45deg,#334155 0 2px,#94A3B8 2px 4px)"></i>Transfer data</span><span><i class="inline-block w-3 h-3 align-middle mr-1" style="border:1px dashed #6B7280"></i>Idle</span></div>`;
+ return`<div class="flex flex-col h-full"><div class="flex-1 min-h-0">${s.split('<div class="flex flex-wrap')[0]}</div><div class="flex flex-wrap${s.split('<div class="flex flex-wrap')[1]}</div>`}
+function pareto(){const all=res.flatMap(r=>r.pts),W0=900,H=400,L=60,Bm=34,mxT=Math.max(...all.map(p=>p.T)),mxC=Math.max(...all.map(p=>p.C)),mnT=Math.min(...all.map(p=>p.T)),mnC=Math.min(...all.map(p=>p.C));
+ const xM=Math.max(mxT*1.08,Math.min(D*1.05,mxT*1.8)),yM=Math.max(mxC*1.08,Math.min(B*1.05,mxC*1.8)),xm=Math.min(mnT*.9,xM*.6),ym=Math.min(mnC*.9,yM*.6),sx=t=>L+(t-xm)/(xM-xm)*(W0-L-16),sy=c=>H-Bm-(c-ym)/(yM-ym)*(H-Bm-14),mr=Math.max(...all.map(p=>p.R))||1;
+ let s=`<svg viewBox="0 0 ${W0} ${H}" class="w-full h-full" role="img" aria-label="Pareto plot">`;
+ for(let i=0;i<=4;i++){const t=xm+(xM-xm)*i/4,c=ym+(yM-ym)*i/4;s+=`<line x1="${sx(t)}" y1="10" x2="${sx(t)}" y2="${H-Bm}" stroke="rgba(255,255,255,.06)"/><text x="${sx(t)}" y="${H-16}" text-anchor="middle" class="vl">${f2(t,0)}</text><line x1="${L}" y1="${sy(c)}" x2="${W0-10}" y2="${sy(c)}" stroke="rgba(255,255,255,.06)"/><text x="${L-6}" y="${sy(c)+3}" text-anchor="end" class="vl">${f2(c,3)}</text>`}
+ s+=`<text x="${W0/2}" y="${H-2}" text-anchor="middle" class="vl">Makespan (s)</text><text x="12" y="12" class="vl">Biaya ($)</text>`;
+ if(D>=xm&&D<=xM)s+=`<line x1="${sx(D)}" y1="10" x2="${sx(D)}" y2="${H-Bm}" stroke="#F87171" stroke-dasharray="5 4"/><text x="${sx(D)-4}" y="22" text-anchor="end" class="vl" style="fill:#F87171">deadline</text>`;
+ if(B>=ym&&B<=yM)s+=`<line x1="${L}" y1="${sy(B)}" x2="${W0-10}" y2="${sy(B)}" stroke="#F87171" stroke-dasharray="5 4"/><text x="${W0-12}" y="${sy(B)-4}" text-anchor="end" class="vl" style="fill:#F87171">budget</text>`;
+ for(const r of res){for(const p of r.pts)s+=`<circle cx="${sx(p.T)}" cy="${sy(p.C)}" r="${3+p.R/mr*7}" fill="${CL[r.key]}" fill-opacity=".5" stroke="${CL[r.key]}"><title>${NM[r.key]} | ${f2(p.T)} s | $${f2(p.C,4)} | risiko ${f2(p.R,3)}</title></circle>`;
+  const b=r.best;s+=`<circle cx="${sx(b.T)}" cy="${sy(b.C)}" r="${5+b.R/mr*7}" fill="none" stroke="#fff" stroke-width="2"/>`}
+ s+='</svg>';
+ return`<div class="flex flex-col h-full"><div class="flex-1 min-h-0">${s}</div><div class="flex flex-wrap gap-3 mt-1 text-[11px] text-gray-400">${res.map(r=>`<span><i class="inline-block w-3 h-3 rounded-full align-middle mr-1" style="background:${CL[r.key]}"></i>${NM[r.key]}</span>`).join('')}<span>Ukuran titik = risiko error | cincin putih = jadwal terpilih</span></div></div>`}
+function setTab(n){tab=n;$('#v1').classList.toggle('hidden',n!==1);$('#v2').classList.toggle('hidden',n!==2);$('#t1').classList.toggle('on',n===1);$('#t2').classList.toggle('on',n===2)}
+$('#t1').onclick=()=>setTab(1);$('#t2').onclick=()=>setTab(2);
+$$('#alg button').forEach(b=>b.onclick=()=>{algo=b.dataset.a;$$('#alg button').forEach(x=>x.classList.toggle('on',x===b));if(algo!=='all')sel=algo;run()});
+['wf','pv','tg'].forEach(i=>$('#'+i).addEventListener('input',()=>{clearTimeout(run.h);run.h=setTimeout(run,120)}));
+$('#bRun').onclick=()=>{seed0++;run();toast('Simulasi dijalankan ulang dengan seed acak baru.')};
+$('#bAnim').onclick=()=>{setTab(1);const cp=$('#cpr'),ph=$('#ph');if(!cp)return;const g=res.find(x=>x.key===sel).best,xm=Math.max(g.T,D)*1.06,x0=76,x1=884,t0=performance.now(),dur=4500;
+ const step=now=>{const f=Math.min(1,(now-t0)/dur),x=x0+f*g.T/xm*(x1-x0);cp.setAttribute('width',x);ph.setAttribute('x1',x);ph.setAttribute('x2',x);if(f<1)requestAnimationFrame(step);else{cp.setAttribute('width',900);ph.setAttribute('x1',-5);ph.setAttribute('x2',-5)}};cp.setAttribute('width',0);requestAnimationFrame(step)};
+$('#vmt').innerHTML='<div class="tag mb-1">Tipe VM (Amazon EC2)</div>'+VMS.map(v=>`${v.n} ${v.t}<br>&nbsp;&nbsp;${v.mips} MIPS | BW ${v.bw} | $${v.rate}/jam | &lambda; ${v.lam}`).join('<br>');
+
+/* ===== Grafik benchmark ===== */
+const APPS=['Montage','LIGO','Epigenomics','SIPHT'],BD={
+ hv:{t:'Hypervolume (lebih tinggi lebih baik)',d:{nsga:[.40,.36,.41,.42],ma:[.52,.44,.48,.50],hm:[.70,.70,.68,.72]},mx:.8,f:v=>v.toFixed(2)},
+ sp:{t:'Spacing (lebih rendah lebih baik)',d:{nsga:[.36,.45,.34,.38],ma:[.30,.38,.29,.33],hm:[.20,.20,.25,.26]},mx:.5,f:v=>v.toFixed(2)},
+ dl:{d:{nsga:[84,80,88,86],ma:[100,98,96,100],hm:[96,94,100,98]},mx:100,f:v=>v+'%'}};
+function bars(m){const d=BD[m],W0=520,H=270,L=34,gw=(W0-L-8)/4;let s=`<svg viewBox="0 0 ${W0} ${H}" class="w-full h-full" role="img">`;
+ for(let i=0;i<=4;i++){const y=H-26-(H-44)*i/4;s+=`<line x1="${L}" x2="${W0-8}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)"/><text x="${L-4}" y="${y+3}" text-anchor="end" class="vl">${m==='dl'?Math.round(d.mx*i/4):(d.mx*i/4).toFixed(2)}</text>`}
+ APPS.forEach((a,i)=>{const x0=L+i*gw+gw*.12,bw=gw*.76/3;s+=`<text x="${L+i*gw+gw/2}" y="${H-8}" text-anchor="middle" class="vl" style="fill:#E5E7EB">${a}</text>`;
+  ['nsga','ma','hm'].forEach((k,j)=>{const v=d.d[k][i],h=v/d.mx*(H-44);s+=`<rect x="${x0+j*bw}" y="${H-26-h}" width="${bw-2}" height="${h}" fill="${CL[k]}" rx="2"><title>${NM[k]} | ${a}: ${d.f(v)}</title></rect><text x="${x0+j*bw+bw/2-1}" y="${H-30-h}" text-anchor="middle" class="vl" style="font-size:9px">${d.f(v)}</text>`})});
+ return s+'</svg><div class="flex gap-3 text-[11px] text-gray-400 mt-1">'+['nsga','ma','hm'].map(k=>`<span><i class="inline-block w-3 h-3 align-middle mr-1" style="background:${CL[k]}"></i>${NM[k]}</span>`).join('')+'</div>'}
+let bm='hv';const wrap=h=>`<div class="flex flex-col h-full">${h.replace('</svg>','</svg>').replace(/^(<svg[\s\S]*?<\/svg>)/,'<div class="flex-1 min-h-0">$1</div>')}</div>`;
+function charts(){$('#ch1').innerHTML=wrap(bars(bm));$('#ch2').innerHTML=wrap(bars('dl'));$('#c1t').textContent=BD[bm].t}
+$$('#mt button').forEach(b=>b.onclick=()=>{bm=b.dataset.m;$$('#mt button').forEach(x=>x.classList.toggle('on',x===b));charts()});
+</script>
+</body>
+</html>
