@@ -9,7 +9,7 @@
 
 Repositori ini berisi implementasi simulasi **CloudSim** dan **Presentasi Web Interaktif (*Cyber-Cloud Mission Control*)** untuk tugas mata kuliah **Strategi Komputasi Awan**. Proyek ini mengevaluasi performa dua algoritma penjadwalan *hybrid* berbasis jurnal ilmiah (**PEFT-PSO** dan **MA-NSGA-II**) menggunakan *workload* **Dataset Minggu 3**, serta membandingkannya terhadap tiga metode *baseline* tunggal yang telah diuji sebelumnya (**LJFP**, **DSOS**, dan **SMO**).
 
-🔗 **Live Presentasi (GitHub Pages):** `[https://<username-github-anda>.github.io/<nama-repositori>/](https://ivansyrfdn.github.io/Hybrid-Algorithm/)`
+🔗 **Live Presentasi (GitHub Pages):** `https://ivansyrfdn.github.io/Hybrid-Algorithm/`
 
 ---
 
